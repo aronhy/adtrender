@@ -63,14 +63,22 @@
 需要 Node.js 24、PostgreSQL。完整配置项、启动和发布说明见 [saas/README.md](saas/README.md)。
 
 ```bash
-cd saas/toolchain && npm ci --no-audit && cd ..
-export PATH="$PWD/toolchain/node_modules/.bin:$PATH"
-cd app && npm ci --no-audit
-cp .env.server.example .env.server   # 填写数据库等配置
-cd .. && ./scripts/wasp.sh start
+cd saas/toolchain
+npm ci --no-audit
+cd ../..
+export PATH="$PWD/saas/toolchain/node_modules/.bin:$PATH"
+cd saas/app
+npm ci --no-audit
+if [ ! -f .env.server ]; then cp .env.server.example .env.server; fi
+# 填写 .env.server，创建对应 PostgreSQL 数据库，再部署迁移。
+node --env-file=.env.server node_modules/prisma/build/index.js migrate deploy
+cd ../..
+VITE_CUSTOMER_APP_ORIGIN=http://localhost:3000 \
+VITE_ADMIN_APP_ORIGIN=http://localhost:3002 \
+./saas/scripts/wasp.sh start
 ```
 
-默认页面 `http://localhost:3000`，API `http://localhost:3001`。
+默认页面 `http://localhost:3000`，API `http://localhost:3001`。本地管理员入口需另启管理端；注册邮件还需配置 outbox 密钥、SMTP 接收器并启动独立 worker，详见 [本地配置与启动](saas/README.md#本地配置与启动)。验证及浏览器依赖安装见 [贡献指南](CONTRIBUTING.md)。
 
 ## 参与贡献
 

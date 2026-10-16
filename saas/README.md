@@ -25,22 +25,50 @@
 先在 `saas/toolchain` 执行 `npm ci --no-audit` 安装固定工具链，再让后续命令优先使用该目录的 `.bin`。当前工具链锁包含 macOS Apple Silicon CLI 包；其他平台必须使用对应官方 CLI 包并单独验证，不能声称已跨平台验收。
 
 ```bash
-cd saas
-export PATH="$PWD/toolchain/node_modules/.bin:$PATH"
-cd app
+cd saas/toolchain
 npm ci --no-audit
-cp .env.server.example .env.server
+cd ../..
+export PATH="$PWD/saas/toolchain/node_modules/.bin:$PATH"
+cd saas/app
+npm ci --no-audit
+if [ ! -f .env.server ]; then cp .env.server.example .env.server; fi
+cd ../..
 ```
 
 仅在 `.env.server` 尚不存在时复制示例。按需填写本地参数，不覆盖已有配置，不将凭证提交 Git。开发数据库示例为本机 `127.0.0.1:55438/saas_dev`，用户 `saas_local`；它与旧 SQLite / ERP 数据无关。Wasp 生成目录 `.wasp/` 不作为源代码修改。
 
 ```bash
+# 以下命令从仓库根目录执行。
 ./saas/scripts/wasp.sh compile
-# 在目标 DATABASE_URL 已核实且迁移已复核后，部署 app/migrations。
+# 先创建本地配置对应的 PostgreSQL 数据库；核实目标后部署已有迁移。
+cd saas/app
+node --env-file=.env.server node_modules/prisma/build/index.js migrate deploy
+cd ../..
+VITE_CUSTOMER_APP_ORIGIN=http://localhost:3000 \
+VITE_ADMIN_APP_ORIGIN=http://localhost:3002 \
 ./saas/scripts/wasp.sh start
 ```
 
 默认开发页面为 `http://localhost:3000`，API 为 `http://localhost:3001`。端口可配置，不能因文件存在就假定进程已启动。独立 worker 通过 `saas/scripts/build-worker.mjs` 构建；产物为 `app/dist-worker/index.mjs`，由 `scripts/worker.sh` 读取 app/.env.server 启动；Netcup测试容器托管已验证，正式环境仍待验，不复用旧 `collect:daily` 或个人 Mac 的定时任务。
+
+前端未显式配置 origin 时使用公共站点域名；本地启动时需像上例一样设置两个 `VITE_*_APP_ORIGIN`，避免管理员入口跳到公共服务。它们是启动 / 构建命令的公开环境变量，Wasp 不从 `.env.client` 自动读取。要运行本地管理端，在 `.env.server` 设置 `ADMIN_WEB_CLIENT_URL=http://localhost:3002` 和至少 32 字符的 `JWT_SECRET`，并重启 API；再在第二个终端从 `saas/app` 执行：
+
+```bash
+REACT_APP_API_URL=http://localhost:3001 \
+VITE_APP_SURFACE=admin \
+VITE_CUSTOMER_APP_ORIGIN=http://localhost:3000 \
+VITE_ADMIN_APP_ORIGIN=http://localhost:3002 \
+../toolchain/node_modules/.bin/node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 3002 --strictPort
+```
+
+邮箱注册需要在 `.env.server` 设置 `OUTBOX_ENCRYPTION_KEY`（32 字节随机密钥的 64 位 hex）、可用的 SMTP 接收器，并启动独立 worker 投递 outbox。示例不包含 SMTP 服务；缺少密钥或 worker 时，页面启动成功也不能完成验证邮件流程。默认邀请模式还需配置 `REGISTRATION_ALLOWLIST`；只在需要开放本地注册时改为 `REGISTRATION_MODE=public`。
+
+仅验证邮件流程时，可在仓库根目录构建并启动 mail-only worker；完整采集和其他后台任务需配置各自依赖后再启用：
+
+```bash
+./saas/toolchain/node_modules/.bin/node saas/scripts/build-worker.mjs
+./saas/scripts/worker.sh --mail-only
+```
 
 | 配置 | 作用与边界 |
 | --- | --- |
@@ -75,7 +103,7 @@ AdTrender 线上已设置 `GOOGLE_AUTH_ENABLED=true`、`REGISTRATION_MODE=public
 REACT_APP_API_URL=https://api.example.invalid ./saas/scripts/verify.sh
 ```
 
-脚本使用项目 Node / npm，显式关闭 npm audit，检查操作脚本和发布准备测试，运行 SaaS Vitest 配置，再执行 Wasp 生产生成、API server bundle、Vite 静态网页和独立 worker build。运行前必须显式设置 `REACT_APP_API_URL` 为 HTTPS origin；仅本地核验可用 `https://api.example.invalid`，该占位产物不可发布。数据库集成测试需要其指定的本机测试库环境变量；测试输出如有 skipped，必须原样记录，不能把跳过当通过。备份 / 恢复演练单独执行，不由普通验证命令自动建库。
+先按 [贡献指南](../CONTRIBUTING.md) 安装根目录测试依赖和 Playwright Chromium。脚本使用项目 Node / npm，显式关闭 npm audit，检查操作脚本和发布准备测试，构建共享契约并执行 Wasp 生产生成，再运行依赖生成文件的测试、SaaS Vitest、API server bundle、Vite 静态网页和独立 worker build。运行前先停止开发预览，并显式设置 `REACT_APP_API_URL` 为 HTTPS origin；仅本地核验可用 `https://api.example.invalid`，该占位产物不可发布。数据库集成测试需要其指定的本机测试库环境变量；测试输出如有 skipped，必须原样记录，不能把跳过当通过。备份 / 恢复演练单独执行，不由普通验证命令自动建库。
 
 ## 备份、恢复与重复核验
 
