@@ -61,7 +61,8 @@ async function verificationLink(email) {
       const response = await fetch(`http://127.0.0.1:8025/api/v1/message/${encodeURIComponent(match.ID)}`, { signal: AbortSignal.timeout(5000) });
       assert.equal(response.status, 200);
       const message = await response.json();
-      const links = [...(message.HTML ?? '').matchAll(/href=["'](https?:\/\/[^"']+)["']/g)].map(match => match[1]);
+      const links = `${message.HTML ?? ''}\n${message.Text ?? ''}`.match(/https?:\/\/[^\s<>"'。]+/g) ?? [];
+      if (!links.length) console.error(`SELFHOST_MAIL_SHAPE keys=${Object.keys(message).join(',')} htmlBytes=${Buffer.byteLength(message.HTML ?? '')} textBytes=${Buffer.byteLength(message.Text ?? '')}`);
       assert(links.length, 'VERIFICATION_LINK_MISSING');
       for (const value of links) {
         const link = new URL(value.replaceAll('&amp;', '&'));
@@ -175,7 +176,8 @@ try {
   // Never print tokens, signed URLs, request bodies, CLI stderr or provider errors.
   const storageFailure = String(error.stderr ?? '').match(/^SELFHOST_STORAGE_FAILED stage=[a-z-]+ kind=[A-Za-z]+$/m);
   if (storageFailure) console.error(storageFailure[0]);
-  const reason = /^[A-Z_]{1,64}$/.test(error.message) ? error.message : /^[A-Z_]{1,64}$/.test(error.code ?? '') ? error.code : 'REDACTED';
+  const firstLine = String(error.message).split('\n')[0];
+  const reason = /^[A-Z_]{1,64}$/.test(firstLine) ? firstLine : /^[A-Z_]{1,64}$/.test(error.code ?? '') ? error.code : 'REDACTED';
   console.error(`SELFHOST_SMOKE_FAILED stage=${stage} kind=${error.name} reason=${reason}`);
   process.exitCode = 1;
 } finally {
