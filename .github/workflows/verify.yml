@@ -87,6 +87,20 @@ jobs:
         run: |
           docker compose run --rm --no-deps --entrypoint caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
           docker compose run --rm --no-deps --entrypoint sh caddy -ec 'test -s /srv/public/200.html && test -s /srv/admin/200.html'
+      - name: Check HTTPS routing for both web surfaces
+        run: |
+          docker compose up -d --no-deps --wait caddy
+          docker compose exec -T caddy cat /trust/root.crt > "$RUNNER_TEMP/caddy-root.crt"
+          curl --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy-root.crt" --resolve localhost:443:127.0.0.1 https://localhost/app/admin --output "$RUNNER_TEMP/customer.html"
+          curl --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy-root.crt" --resolve admin.localhost:443:127.0.0.1 https://admin.localhost/app/admin --output "$RUNNER_TEMP/admin.html"
+          docker compose exec -T caddy cat /srv/public/200.html > "$RUNNER_TEMP/expected-customer.html"
+          docker compose exec -T caddy cat /srv/admin/200.html > "$RUNNER_TEMP/expected-admin.html"
+          cmp "$RUNNER_TEMP/customer.html" "$RUNNER_TEMP/expected-customer.html"
+          cmp "$RUNNER_TEMP/admin.html" "$RUNNER_TEMP/expected-admin.html"
+          if cmp -s "$RUNNER_TEMP/customer.html" "$RUNNER_TEMP/admin.html"; then
+            echo 'Customer and administrator hosts served the same entry point.' >&2
+            exit 1
+          fi
       - name: Remove disposable resources
         if: always()
         run: docker compose --profile mailpit down --volumes --remove-orphans
