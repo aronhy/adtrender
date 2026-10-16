@@ -58,7 +58,17 @@ jobs:
       - name: Install Chromium and PostgreSQL client
         run: |
           sudo apt-get update
+          # Ubuntu 24.04 ships PostgreSQL 16. Use the official repository for
+          # client tools matching the PostgreSQL 15 self-host database.
+          # https://www.postgresql.org/download/linux/ubuntu/
+          sudo apt-get install -y curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/adtrender-pgdg.list
+          sudo apt-get update
           sudo apt-get install -y postgresql-client-15 apparmor
+          "$PG_BIN/pg_dump" --version
+          "$PG_BIN/pg_restore" --version
           node apps/web/node_modules/playwright/cli.js install --with-deps chromium --no-shell
       - name: Allow sandboxed Chromium on the runner
         # Ubuntu 24.04 restricts user namespaces for downloaded browsers.
