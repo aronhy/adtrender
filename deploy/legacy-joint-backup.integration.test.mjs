@@ -24,7 +24,9 @@ for (const hasObservation of [true, false]) test(`a public legacy import ${hasOb
   const { buildPublicImportPlan, importPublicPlan } = await module('import-public.ts');
   const { prepareLocalMediaManifest, uploadLocalMedia, createLocalS3Provider } = await module('local-media.ts');
   const base = new URL(baseUrl);
-  assert(['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname) && /test/.test(base.pathname) && !base.search);
+  assert(['postgres:', 'postgresql:'].includes(base.protocol));
+  assert(['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname)
+    && /(?:^|[_-])(?:test|restore)(?:[_-]|$)/i.test(base.pathname.slice(1)) && !base.search && !base.hash);
   const suffix = randomUUID().replaceAll('-', '').slice(0, 20);
   const sourceName = 'saas_legacy_source_test_' + suffix, targetName = 'saas_legacy_restore_test_' + suffix;
   const sourceClientUrl = new URL(base); sourceClientUrl.pathname = '/' + sourceName;
@@ -32,7 +34,7 @@ for (const hasObservation of [true, false]) test(`a public legacy import ${hasOb
   const targetClientUrl = new URL(base); targetClientUrl.pathname = '/' + targetName;
   const targetUrl = new URL(targetClientUrl); targetUrl.password = '';
   const pgBin = process.env.PG_BIN;
-  const pgEnv = { PATH: pgBin ? `${pgBin}:${process.env.PATH}` : process.env.PATH, PGHOST: base.hostname, PGPORT: base.port || '5432', PGUSER: decodeURIComponent(base.username), PGPASSWORD: decodeURIComponent(base.password), PGDATABASE: 'postgres', PGCONNECT_TIMEOUT: '5' };
+  const pgEnv = { PATH: pgBin ? `${pgBin}:${process.env.PATH}` : process.env.PATH, PGHOST: base.hostname.replace(/^\[|\]$/g, ''), PGPORT: base.port || '5432', PGUSER: decodeURIComponent(base.username), PGPASSWORD: decodeURIComponent(base.password), PGDATABASE: 'postgres', PGCONNECT_TIMEOUT: '5' };
   const command = async (file, args, env) => {
     try { return (await exec(file, args, { env, timeout: 60000, maxBuffer: 4 * 1024 * 1024 })).stdout.trim(); }
     catch { throw new Error('LEGACY_JOINT_REHEARSAL_FAILED_' + file.split('/').at(-1)); }
