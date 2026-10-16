@@ -164,8 +164,19 @@ test('PostgreSQL and real Garage joint restore', { timeout: 180000 }, async t =>
     assert.equal(targetTraffic.puts(), 3); assert(!targetTraffic.methods.includes('DELETE'));
   });
   await t.test('Garage enforces conditional PUT and preserves the existing bytes', async () => {
-    await assert.rejects(() => put(targetWriter, target.bucket, firstKey, Buffer.from('must not overwrite'), firstValue.contentType, { IfNoneMatch: '*' }), error => error.$metadata?.httpStatusCode === 412);
-    assert.deepEqual(await get(targetWriter, target.bucket, firstKey), firstValue);
+    // Use a separate diagnostic key so a provider defect cannot contaminate later restore checks.
+    const key = `restore-capability-probe/${randomUUID()}`, original = Buffer.from('original probe');
+    targetWriter.middlewareStack.add(next => async args => {
+      if (args.input.IfNoneMatch === '*') assert.equal(args.request.headers['if-none-match'], '*');
+      return next(args);
+    }, { step: 'finalizeRequest', name: 'assertConditionalHeader' });
+    await put(targetWriter, target.bucket, key, original, 'application/octet-stream');
+    try {
+      await assert.rejects(() => put(targetWriter, target.bucket, key, Buffer.from('must not overwrite'), 'application/octet-stream', { IfNoneMatch: '*' }), error => error.$metadata?.httpStatusCode === 412);
+      assert.deepEqual((await get(targetWriter, target.bucket, key)).bytes, original);
+    } finally {
+      await send(targetWriter, new DeleteObjectCommand({ Bucket: target.bucket, Key: key }));
+    }
   });
   await t.test('unchanged row counts cannot hide restored database metadata drift', async () => {
     await restoredDb.privateFile.update({ where: { id: privateFile.id }, data: { sha256: 'f'.repeat(64) } });
