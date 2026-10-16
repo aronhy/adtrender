@@ -1,0 +1,211 @@
+# Self-host AdTrender: web app, API, worker, PostgreSQL and S3-compatible storage
+# behind Caddy (automatic HTTPS). See docs/self-hosting.md#docker-compose.
+#
+#   ./scripts/selfhost-init.sh research.example.com you@example.com
+#   docker compose up -d --build
+name: adtrender
+
+x-app: &app
+  image: adtrender-api:local
+  user: "1000:1000"
+  init: true
+  restart: unless-stopped
+  environment: &app-env
+    NODE_ENV: production
+    PORT: "3001"
+    DATABASE_URL: postgresql://adtrender:${POSTGRES_PASSWORD:?Run scripts/selfhost-init.sh first}@postgres:5432/adtrender
+    WASP_WEB_CLIENT_URL: https://${APP_HOST}
+    WASP_SERVER_URL: https://${API_HOST}
+    JWT_SECRET: ${JWT_SECRET:?}
+    OUTBOX_ENCRYPTION_KEY: ${OUTBOX_ENCRYPTION_KEY:?}
+    RATE_LIMIT_HMAC_SECRET: ${RATE_LIMIT_HMAC_SECRET:?}
+    TRUSTED_PROXY_IPS: ${PROXY_IP:-172.31.240.10}
+    REGISTRATION_MODE: ${REGISTRATION_MODE:-invite}
+    REGISTRATION_ALLOWLIST: ${REGISTRATION_ALLOWLIST:-}
+    GOOGLE_AUTH_ENABLED: ${GOOGLE_AUTH_ENABLED:-false}
+    GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    SMTP_HOST: ${SMTP_HOST:?}
+    SMTP_PORT: ${SMTP_PORT:-587}
+    SMTP_SECURE: ${SMTP_SECURE:-false}
+    SMTP_USERNAME: ${SMTP_USERNAME:?}
+    SMTP_PASSWORD: ${SMTP_PASSWORD:?}
+    EMAIL_FROM: ${EMAIL_FROM:?}
+    S3_BUCKET: adtrender
+    S3_REGION: garage
+    S3_ENDPOINT: https://${S3_HOST}
+    S3_FORCE_PATH_STYLE: "true"
+    AWS_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY:?}
+    AWS_SECRET_ACCESS_KEY: ${GARAGE_SECRET_KEY:?}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ANALYSIS_MODEL: ${ANALYSIS_MODEL:-}
+    BILLING_ENABLED: "false"
+    LIVE_BILLING_ENABLED: "false"
+    TRIAL_DAYS: ${TRIAL_DAYS:-14}
+    TRIAL_WORKSPACES: ${TRIAL_WORKSPACES:-1}
+    TRIAL_MEMBERS: ${TRIAL_MEMBERS:-3}
+    TRIAL_SAVED_ADS: ${TRIAL_SAVED_ADS:-100}
+    TRIAL_ANALYSES: ${TRIAL_ANALYSES:-20}
+    META_BROWSER_CHANNEL: chromium
+    PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+    # Only used with CADDY_GLOBAL_OPTIONS=local_certs; ignored when absent.
+    NODE_EXTRA_CA_CERTS: /caddy-trust/root.crt
+  volumes:
+    - caddy_trust:/caddy-trust:ro
+  read_only: true
+  tmpfs:
+    - /tmp:rw,nosuid,nodev,size=512m,mode=1777
+    - /home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=0700
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  networks: [default]
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    garage:
+      condition: service_healthy
+    caddy:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:15.17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: adtrender
+      POSTGRES_USER: adtrender
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/selfhost-init.sh first}
+    command: [postgres, -c, timezone=UTC, -c, log_timezone=UTC]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U adtrender -d adtrender']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    stop_grace_period: 60s
+
+  garage:
+    image: dxflrs/garage:v2.4.1
+    restart: unless-stopped
+    command: [/garage, server, --single-node, --default-bucket]
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage.toml
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?}
+      GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_ACCESS_KEY:?}
+      GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_SECRET_KEY:?}
+      GARAGE_DEFAULT_BUCKET: adtrender
+      RUST_LOG: garage=info
+    volumes:
+      - ./deploy/container/garage.toml:/etc/garage.toml:ro
+      - garage_meta:/data/meta
+      - garage_objects:/data/objects
+    healthcheck:
+      test: [CMD, /garage, status]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    stop_grace_period: 60s
+
+  # Applies pending Prisma migrations once per `up`, before the API and worker start.
+  migrate:
+    image: adtrender-api:local
+    build:
+      context: .
+      dockerfile: deploy/selfhost/Dockerfile
+      target: api
+      args:
+        API_URL: https://${API_HOST:?Run scripts/selfhost-init.sh first}
+    user: "1000:1000"
+    environment:
+      DATABASE_URL: postgresql://adtrender:${POSTGRES_PASSWORD}@postgres:5432/adtrender
+    command: [node, node_modules/prisma/build/index.js, migrate, deploy, --schema=.wasp/out/db/schema.prisma]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    healthcheck:
+      test: [CMD, node, -e, 'fetch("http://127.0.0.1:3001/health").then(async r=>{const s=await r.json();process.exit(r.ok&&s.database==="ok"?0:1)}).catch(()=>process.exit(1))']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    stop_grace_period: 60s
+
+  worker:
+    <<: *app
+    command: [node, --enable-source-maps, dist-worker/index.mjs]
+    shm_size: 1gb
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./deploy/container/seccomp_profile.json
+    stop_grace_period: 90s
+
+  caddy:
+    image: adtrender-web:local
+    build:
+      context: .
+      dockerfile: deploy/selfhost/Dockerfile
+      target: web
+      args:
+        API_URL: https://${API_HOST}
+    restart: unless-stopped
+    environment:
+      APP_HOST: ${APP_HOST:?}
+      API_HOST: ${API_HOST:?}
+      S3_HOST: ${S3_HOST:?}
+      CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:-}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_trust:/trust
+    healthcheck:
+      # With local certificates, wait until the root certificate is published.
+      test: [CMD-SHELL, '[ -z "$$CADDY_GLOBAL_OPTIONS" ] || [ -f /trust/root.crt ]']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    networks:
+      default:
+        ipv4_address: ${PROXY_IP:-172.31.240.10}
+        # The API and worker reach the public hostnames through Caddy, so signed
+        # object URLs work for both the server and the browser.
+        aliases:
+          - ${APP_HOST}
+          - ${API_HOST}
+          - ${S3_HOST}
+
+  # Local inbox for trying the stack without a real SMTP provider:
+  #   docker compose --profile mailpit up -d   (UI on http://127.0.0.1:8025)
+  mailpit:
+    image: axllent/mailpit:v1.27
+    profiles: [mailpit]
+    restart: unless-stopped
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "127.0.0.1:8025:8025"
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${PROXY_SUBNET:-172.31.240.0/24}
+
+volumes:
+  postgres_data:
+  garage_meta:
+  garage_objects:
+  caddy_data:
+  caddy_config:
+  caddy_trust:

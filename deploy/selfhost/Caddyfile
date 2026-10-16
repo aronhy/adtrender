@@ -1,0 +1,41 @@
+# Hostnames come from .env (see docker-compose.yaml). Caddy obtains public
+# certificates automatically; CADDY_GLOBAL_OPTIONS=local_certs uses its own CA
+# for a test run on *.localhost.
+{
+	{$CADDY_GLOBAL_OPTIONS}
+}
+
+{$APP_HOST} {
+	root * /srv/public
+	encode zstd gzip
+	header {
+		Referrer-Policy no-referrer
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+	}
+	handle /assets/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+	handle {
+		header Cache-Control no-cache
+		try_files {path} {path}/index.html /200.html
+		file_server {
+			index index.html 200.html
+		}
+	}
+}
+
+{$API_HOST} {
+	header Referrer-Policy no-referrer
+	header Cache-Control no-store
+	reverse_proxy api:3001 {
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+{$S3_HOST} {
+	reverse_proxy garage:3900
+}
+
+# No access log is enabled: auth/invitation links contain one-time query tokens.
