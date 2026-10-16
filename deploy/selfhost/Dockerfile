@@ -28,7 +28,9 @@ RUN test -n "$API_URL" && test -n "$APP_URL" && test -n "$ADMIN_URL" || { echo "
     && REACT_APP_API_URL="$API_URL" VITE_APP_SURFACE=customer VITE_CUSTOMER_APP_ORIGIN="$APP_URL" VITE_ADMIN_APP_ORIGIN="$ADMIN_URL" node node_modules/vite/bin/vite.js build \
     && node ../../scripts/build-worker.mjs \
     && node ../../scripts/prepare-release.mjs --output /release --release-id selfhost --public-api-url "$API_URL" \
-    && REACT_APP_API_URL="$API_URL" VITE_APP_SURFACE=admin VITE_CUSTOMER_APP_ORIGIN="$APP_URL" VITE_ADMIN_APP_ORIGIN="$ADMIN_URL" node node_modules/vite/bin/vite.js build --outDir /admin-public
+    && REACT_APP_API_URL="$API_URL" VITE_APP_SURFACE=admin VITE_CUSTOMER_APP_ORIGIN="$APP_URL" VITE_ADMIN_APP_ORIGIN="$ADMIN_URL" node node_modules/vite/bin/vite.js build \
+    && mkdir /admin-public \
+    && cp -a .wasp/out/web-app/build/. /admin-public/
 
 FROM ${NODE_IMAGE} AS api
 ENV npm_config_audit=false \
