@@ -62,7 +62,7 @@
 
 ### 用 Docker 自托管
 
-需要一台装有 Docker 的服务器，并把 `你的域名`、`api.你的域名`、`s3.你的域名` 解析到这台机器。一条命令生成带随机密钥的 `.env`，再填好 SMTP 发信账号即可启动；Caddy 会自动申请 HTTPS 证书。
+需要一台装有 Docker 的服务器，并把 `你的域名`、`admin.你的域名`、`api.你的域名`、`s3.你的域名` 解析到这台机器。一条命令生成带随机密钥的 `.env`，再填好 SMTP 发信账号即可启动；Caddy 会自动申请 HTTPS 证书。
 
 ```bash
 ./scripts/selfhost-init.sh research.example.com you@example.com

@@ -5,6 +5,8 @@ ARG NODE_IMAGE=node:24.14.1-bookworm-slim
 
 FROM ${NODE_IMAGE} AS build
 ARG API_URL
+ARG APP_URL
+ARG ADMIN_URL
 ENV npm_config_audit=false \
     npm_config_fund=false \
     WASP_TELEMETRY_DISABLE=1
@@ -19,13 +21,14 @@ COPY packages/contracts/ packages/contracts/
 COPY apps/web/package.json apps/web/package-lock.json apps/web/.npmrc apps/web/
 RUN cd apps/web && npm ci
 COPY . .
-RUN test -n "$API_URL" || { echo "Set API_URL (the public HTTPS origin of the API)." >&2; exit 1; } \
+RUN test -n "$API_URL" && test -n "$APP_URL" && test -n "$ADMIN_URL" || { echo "Set API_URL, APP_URL and ADMIN_URL to the public HTTPS origins." >&2; exit 1; } \
     && ./scripts/bootstrap-wasp.sh \
     && ./scripts/wasp.sh build \
     && cd apps/web \
-    && REACT_APP_API_URL="$API_URL" node node_modules/vite/bin/vite.js build \
+    && REACT_APP_API_URL="$API_URL" VITE_APP_SURFACE=customer VITE_CUSTOMER_APP_ORIGIN="$APP_URL" VITE_ADMIN_APP_ORIGIN="$ADMIN_URL" node node_modules/vite/bin/vite.js build \
     && node ../../scripts/build-worker.mjs \
-    && node ../../scripts/prepare-release.mjs --output /release --release-id selfhost --public-api-url "$API_URL"
+    && node ../../scripts/prepare-release.mjs --output /release --release-id selfhost --public-api-url "$API_URL" \
+    && REACT_APP_API_URL="$API_URL" VITE_APP_SURFACE=admin VITE_CUSTOMER_APP_ORIGIN="$APP_URL" VITE_ADMIN_APP_ORIGIN="$ADMIN_URL" node node_modules/vite/bin/vite.js build --outDir /admin-public
 
 FROM ${NODE_IMAGE} AS api
 ENV npm_config_audit=false \
@@ -59,6 +62,7 @@ CMD ["node", "--enable-source-maps", ".wasp/out/server/bundle/server.js"]
 # Static site plus the HTTPS entry point for the web app, API and object storage.
 FROM caddy:2.10.2-alpine AS web
 COPY --from=build /release/public/ /srv/public/
+COPY --from=build /admin-public/ /srv/admin/
 COPY deploy/selfhost/Caddyfile /etc/caddy/Caddyfile
 COPY --chmod=0755 deploy/selfhost/caddy-entrypoint.sh /usr/local/bin/caddy-entrypoint.sh
 RUN mkdir -p /trust
