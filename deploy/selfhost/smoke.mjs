@@ -61,10 +61,14 @@ async function verificationLink(email) {
       const response = await fetch(`http://127.0.0.1:8025/api/v1/message/${encodeURIComponent(match.ID)}`, { signal: AbortSignal.timeout(5000) });
       assert.equal(response.status, 200);
       const message = await response.json();
-      const links = `${message.Text}\n${message.HTML}`.match(/https:\/\/localhost\/email-verification\?[^\s<>"']+/g) ?? [];
+      const links = [...(message.HTML ?? '').matchAll(/href=["'](https?:\/\/[^"']+)["']/g)].map(match => match[1]);
+      assert(links.length, 'VERIFICATION_LINK_MISSING');
       for (const value of links) {
         const link = new URL(value.replaceAll('&amp;', '&'));
-        if (link.origin === customer && link.pathname === '/email-verification' && /^[a-f\d]{64}$/.test(link.searchParams.get('token') ?? '')) return link;
+        assert.equal(link.origin, customer, 'VERIFICATION_ORIGIN_INVALID');
+        assert.equal(link.pathname, '/email-verification', 'VERIFICATION_PATH_INVALID');
+        assert(/^[a-f\d]{64}$/.test(link.searchParams.get('token') ?? ''), 'VERIFICATION_TOKEN_INVALID');
+        return link;
       }
       throw new Error('VERIFICATION_LINK_REQUIRED');
     }
@@ -113,7 +117,9 @@ try {
     stage = 'worker-smtp-verification';
     const link = await verificationLink(email);
     link.searchParams.set('lang', 'en');
+    stage = 'received-link-navigation';
     await page.goto(link.href);
+    stage = 'email-verification';
     await page.getByRole('button', { name: 'Verify my email', exact: true }).waitFor();
     assert(!new URL(page.url()).searchParams.has('token'));
     await page.getByRole('button', { name: 'Verify my email', exact: true }).click();
@@ -169,7 +175,8 @@ try {
   // Never print tokens, signed URLs, request bodies, CLI stderr or provider errors.
   const storageFailure = String(error.stderr ?? '').match(/^SELFHOST_STORAGE_FAILED stage=[a-z-]+ kind=[A-Za-z]+$/m);
   if (storageFailure) console.error(storageFailure[0]);
-  console.error(`SELFHOST_SMOKE_FAILED stage=${stage} kind=${error.name}`);
+  const reason = /^[A-Z_]{1,64}$/.test(error.message) ? error.message : /^[A-Z_]{1,64}$/.test(error.code ?? '') ? error.code : 'REDACTED';
+  console.error(`SELFHOST_SMOKE_FAILED stage=${stage} kind=${error.name} reason=${reason}`);
   process.exitCode = 1;
 } finally {
   await browser?.close();
