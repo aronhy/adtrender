@@ -56,14 +56,33 @@ jobs:
       - name: Install Chromium and PostgreSQL client
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-client apparmor
           node apps/web/node_modules/playwright/cli.js install --with-deps chromium --no-shell
+      - name: Allow sandboxed Chromium on the runner
+        # Ubuntu 24.04 restricts user namespaces for downloaded browsers.
+        # Scope the exception to this executable; keep chromiumSandbox enabled.
+        # https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md
+        run: |
+          chromium_path=$(node -p "require('./apps/web/node_modules/playwright').chromium.executablePath()")
+          test -x "$chromium_path"
+          sudo tee /etc/apparmor.d/adtrender-ci-chromium > /dev/null <<EOF
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile adtrender-ci-chromium "$chromium_path" flags=(unconfined) {
+            userns,
+          }
+          EOF
+          sudo apparmor_parser -r /etc/apparmor.d/adtrender-ci-chromium
       - name: Bootstrap Wasp and migrate the isolated database
         run: |
           ./scripts/bootstrap-wasp.sh
           node apps/web/node_modules/prisma/build/index.js migrate deploy --schema=apps/web/.wasp/out/db/schema.prisma
       - name: Verify application
-        run: ./scripts/verify.sh
+        run: |
+          # Build regression tests intentionally compile invalid TypeScript.
+          # Their exit status remains authoritative without false annotations.
+          echo '::remove-matcher owner=tsc::'
+          ./scripts/verify.sh
       - name: Check self-host configuration
         run: |
           docker compose version
