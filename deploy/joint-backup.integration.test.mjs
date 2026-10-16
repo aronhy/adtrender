@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
-import { seedJointBackupFixture } from './helpers/joint-backup-fixture.mjs';
+import { createHash, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -14,6 +13,7 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile), root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(join(root, 'apps/web/package.json'));
 const { PrismaClient } = require('@prisma/client');
+const hash = value => createHash('sha256').update(value).digest('hex');
 const baseUrl = process.env.SAAS_BACKUP_TEST_DATABASE_URL;
 if (process.env.CI && !baseUrl) throw new Error('SAAS_BACKUP_TEST_DATABASE_URL is required in CI');
 
@@ -44,8 +44,25 @@ test('the actual CLI restores PostgreSQL, private research and all referenced S3
   await sql(`CREATE DATABASE "${sourceName}" TEMPLATE template0;`);
   await command(process.execPath, [join(root, 'apps/web/node_modules/prisma/build/index.js'), 'migrate', 'deploy', '--schema=' + join(root, 'apps/web/.wasp/out/db/schema.prisma')], { ...pgEnv, DATABASE_URL: sourceUrl.href });
   sourceDb = new PrismaClient({ datasources: { db: { url: sourceUrl.href } } });
-  const { note, privateFile, sourceObjects } = await seedJointBackupFixture(sourceDb);
+  const user = await sourceDb.user.create({ data: { email: `joint-${suffix}@example.test` } });
+  const organization = await sourceDb.organization.create({ data: { name: 'Synthetic restore team', slug: suffix, members: { create: { userId: user.id, role: 'OWNER' } }, workspaces: { create: { name: 'Synthetic workspace', slug: 'fixture' } } }, include: { workspaces: true } });
+  const workspace = organization.workspaces[0];
+  const dataSource = await sourceDb.dataSource.create({ data: { key: suffix, name: 'Synthetic backup evidence', adapterVersion: 'fixture', status: 'DISABLED' } });
+  const ad = await sourceDb.ad.create({ data: { dataSourceId: dataSource.id, sourceAdId: suffix, sourceUrl: 'https://example.invalid/synthetic', body: 'Synthetic backup record' } });
+  const saved = await sourceDb.savedAd.create({ data: { organizationId: organization.id, workspaceId: workspace.id, adId: ad.id, savedByUserId: user.id } });
+  const note = await sourceDb.note.create({ data: { organizationId: organization.id, workspaceId: workspace.id, savedAdId: saved.id, authorUserId: user.id, body: '联合恢复测试私有笔记，不是真实客户数据。' } });
+  const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCykAAAAASUVORK5CYII=', 'base64');
+  const video = Buffer.from('00000018667479706d703432000000006d70343269736f6d', 'hex');
+  const evidence = Buffer.from(JSON.stringify({ fixture: true, source: 'synthetic', ad: ad.id }));
+  const imageKey = `public-media/${randomUUID()}`, privateKey = `private/${organization.id}/${workspace.id}/${randomUUID()}`, evidenceKey = `private-source-evidence/fixture-run/${randomUUID()}.json`;
+  await sourceDb.mediaObject.create({ data: { adId: ad.id, sourceUrl: 'https://example.invalid/synthetic.png', type: 'IMAGE', status: 'READY', storageKey: imageKey, mimeType: 'image/png', sizeBytes: BigInt(image.length), sha256: hash(image) } });
+  const privateFile = await sourceDb.privateFile.create({ data: { organizationId: organization.id, workspaceId: workspace.id, storageKey: privateKey, filename: 'synthetic.mp4', status: 'READY', mimeType: 'video/mp4', sizeBytes: BigInt(video.length), sha256: hash(video) } });
+  const task = await sourceDb.collectionTask.create({ data: { dataSourceId: dataSource.id, name: 'Synthetic evidence only', query: {}, status: 'PAUSED' } });
+  const run = await sourceDb.collectionRun.create({ data: { taskId: task.id, dataSourceId: dataSource.id, idempotencyKey: suffix, querySnapshot: {}, adapterVersion: 'fixture', evidenceReference: 's3:' + evidenceKey } });
+  await sourceDb.runItem.create({ data: { runId: run.id, dataSourceId: dataSource.id, itemKey: 'fixture', parserVersion: 'fixture', evidenceReference: 's3:' + evidenceKey, evidenceSha256: hash(evidence) } });
+  await sourceDb.adObservation.create({ data: { adId: ad.id, dataSourceId: dataSource.id, collectionRunId: run.id, observedAt: new Date(), snapshot: { fixture: true }, parserVersion: 'fixture', evidenceReference: 's3:' + evidenceKey, evidenceSha256: hash(evidence) } });
   const sourceBucket = 'saas-test-source-' + suffix, targetBucket = 'saas-restore-' + suffix;
+  const sourceObjects = new Map([[imageKey, { bytes: image, contentType: 'image/png' }], [privateKey, { bytes: video, contentType: 'video/mp4' }], [evidenceKey, { bytes: evidence, contentType: 'application/json' }]]);
   const restoredObjects = new Map(); let targetPuts = 0, sourcePuts = 0;
   server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1'), [, bucket, ...parts] = url.pathname.split('/'); const key = decodeURIComponent(parts.join('/'));

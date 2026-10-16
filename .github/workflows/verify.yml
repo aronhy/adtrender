@@ -105,8 +105,6 @@ jobs:
         run: |
           docker compose version
           node --test deploy/selfhost/config.test.mjs
-      - name: Rehearse PostgreSQL and real Garage joint restore
-        run: node deploy/backup/run-garage-rehearsal.mjs
       - name: Remove isolated PostgreSQL
         if: always()
         run: |

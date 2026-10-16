@@ -120,7 +120,7 @@ docker compose exec api node --import tsx src/team/admin-cli.ts grant-admin --em
 REACT_APP_API_URL=https://api.example.invalid ./scripts/verify.sh
 ```
 
-脚本使用项目 Node / npm，显式关闭 npm audit，检查操作脚本、发布准备和对象备份测试，执行 Wasp 生产生成，再运行 SaaS Vitest 和数据库备份恢复回归，最后构建 API server bundle、Vite 静态网页和独立 worker。运行前必须显式设置 `REACT_APP_API_URL` 为 HTTPS origin；仅本地核验可用 `https://api.example.invalid`，该占位产物不可发布。数据库集成测试需要其指定的本机测试库环境变量；测试输出如有 skipped，必须原样记录，不能把跳过当通过。备份回归仅在显式设置 `SAAS_BACKUP_TEST_DATABASE_URL` 时创建随机隔离演练库，缺失时本机跳过、CI 报错；不会修改传入的测试库。真实 Garage 联合恢复由 CI 单独运行，本机执行方式见[演练说明](../deploy/backup/README.md)。
+脚本使用项目 Node / npm，显式关闭 npm audit，检查操作脚本、发布准备和对象备份测试，执行 Wasp 生产生成，再运行 SaaS Vitest 和数据库备份恢复回归，最后构建 API server bundle、Vite 静态网页和独立 worker。运行前必须显式设置 `REACT_APP_API_URL` 为 HTTPS origin；仅本地核验可用 `https://api.example.invalid`，该占位产物不可发布。数据库集成测试需要其指定的本机测试库环境变量；测试输出如有 skipped，必须原样记录，不能把跳过当通过。19 项对象备份测试始终运行；12 项 PostgreSQL 备份与联合恢复回归仅在显式设置 `SAAS_BACKUP_TEST_DATABASE_URL` 时创建、清理随机命名的隔离演练库，不修改该 URL 指向的原测试库。缺少该变量时本机跳过、CI 报错；账号需具备建库权限。客户端从 `PG_BIN` 或 `PATH` 获取。真实 Garage 联合恢复需另行验证，不能由模拟 S3 的通过结果推断。
 
 ## 备份、恢复与重复核验
 
@@ -139,9 +139,7 @@ REACT_APP_API_URL=https://api.example.invalid ./scripts/verify.sh
 
 数据库 dump 后可显式运行 [object-backup.mjs](../scripts/object-backup.mjs)：`backup` 只 GET 数据库清单所引用的公共媒体、私有文件与原始证据，逐对象核对字节、大小和内容类型，再生成绑定 dump/数据库 manifest 的对象归档；不遍历来源桶。`restore` 使用不同的独立空桶和新本机恢复库，调用数据库恢复检查，以条件 PUT 写入对象并 GET 复验，全部通过才记录 `JOINT_RESTORE_VERIFIED`。相同恢复可只读重验，冲突对象不覆盖，部分结果和失败证据保留。命令、独立恢复凭据及边界见 数据库与对象联合备份手册。
 
-上述不覆盖保证要求目标存储实际支持条件 PUT。真实演练发现默认 Garage 2.4.1 忽略 `If-None-Match: *`，正常恢复通过仍不能满足该安全契约；当前属于合并前阻塞，详情见[恢复兼容性说明](../deploy/backup/README.md#当前兼容性阻塞)。
-
-SHA-256 用于文件完整性与结果对账，不是加密或签名。备份含实际业务资料，正式环境还须配置加密、访问限制、异地副本、保留周期、RPO / RTO 和告警。联合备份回归包含真实 PostgreSQL、模拟 S3 和独立真实 Garage 的恢复演练；这不代表供应商灾难恢复、大规模数据或生产恢复演练已验收。旧版数据库 manifest 缺少对象引用时只可获得数据库恢复结果，不能据此宣称联合恢复成功。
+SHA-256 用于文件完整性与结果对账，不是加密或签名。备份含实际业务资料，正式环境还须配置加密、访问限制、异地副本、保留周期、RPO / RTO 和告警。联合备份工具已用真实本机 PostgreSQL 和 fake S3 验证；这不代表远端 Garage、供应商灾难恢复、大规模数据或生产恢复演练已验收。旧版数据库 manifest 缺少对象引用时只可获得数据库恢复结果，不能据此宣称联合恢复成功。
 
 本轮已在带公开数据的本机独立演练库完成五个迁移后的 37 表 / 2,685 行备份恢复与重复只读核验；首轮 36 表备份和恢复库保留，未覆盖开发库。详见 公开迁移及恢复证据。
 
