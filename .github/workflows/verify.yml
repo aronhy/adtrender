@@ -89,7 +89,7 @@ jobs:
           node --test deploy/selfhost/config.test.mjs
 
   selfhost:
-    name: Self-host images
+    name: Self-host deployment
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -99,7 +99,15 @@ jobs:
         with:
           persist-credentials: false
       - name: Initialize disposable local configuration
-        run: ./scripts/selfhost-init.sh localhost owner@example.test
+        run: |
+          ./scripts/selfhost-init.sh localhost owner@example.test,member@example.test
+          python3 - <<'PY'
+          from pathlib import Path
+          for line in Path('.env').read_text().splitlines():
+              key, _, value = line.partition('=')
+              if len(value) >= 16 and any(part in key for part in ['SECRET', 'PASSWORD', 'KEY']):
+                  print(f'::add-mask::{value}')
+          PY
       - name: Build API and both web surfaces
         run: docker compose --profile mailpit build migrate caddy
       - name: Validate Caddy and packaged assets
@@ -120,6 +128,35 @@ jobs:
             echo 'Customer and administrator hosts served the same entry point.' >&2
             exit 1
           fi
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.14.1
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install smoke-test browser
+        run: |
+          npm ci --no-audit
+          node node_modules/playwright/cli.js install --with-deps chromium --no-shell
+          chromium_path=$(node -p "require('playwright').chromium.executablePath()")
+          sudo tee /etc/apparmor.d/adtrender-ci-chromium > /dev/null <<EOF
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile adtrender-ci-chromium "$chromium_path" flags=(unconfined) {
+            userns,
+          }
+          EOF
+          sudo apparmor_parser -r /etc/apparmor.d/adtrender-ci-chromium
+      - name: Start the complete stack from empty volumes
+        run: docker compose --profile mailpit up -d --wait --wait-timeout 180
+      - name: Verify registration, administration and Garage storage
+        env:
+          SELFHOST_SMOKE: '1'
+        run: SELFHOST_CA_FILE="$RUNNER_TEMP/caddy-root.crt" node deploy/selfhost/smoke.mjs
+      - name: Inspect failed services
+        if: failure()
+        run: |
+          docker compose --profile mailpit ps --all
+          docker compose --profile mailpit logs --no-color --tail 80 migrate api worker garage
       - name: Remove disposable resources
         if: always()
         run: docker compose --profile mailpit down --volumes --remove-orphans

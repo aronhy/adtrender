@@ -159,6 +159,8 @@ Linux systemd / Caddy 模板、Wasp 产物整理、相邻 contracts 包安装、
 
 `node --test deploy/selfhost/config.test.mjs` 使用隔离目录生成配置，核对公开域名和 localhost 的前后台地址、构建参数和反向代理配置，不启动 Docker 容器。需要 Docker Compose CLI；CI 中缺少 CLI 会直接失败。
 
-GitHub Actions 的 `Verify` 运行隔离 PostgreSQL 和 Chromium 测试及生产构建，`Self-host images` 构建 Linux 镜像、校验 Caddy 配置，并启动 Caddy 核对两个域名的 HTTPS 响应及对应产物。工作流不发布镜像或部署服务。真实 SMTP、支付和来源采集仍需单独验收。
+GitHub Actions 的 `Verify` 运行隔离 PostgreSQL 和 Chromium 测试及生产构建。`Self-host deployment` 从空数据卷启动完整 Compose 服务，校验 Caddy 的双域名 HTTPS、迁移和 worker 就绪状态，再通过浏览器完成注册、Mailpit 收信、邮箱验证及前后台登录，核对管理员显式授权和普通用户拒绝访问。存储检查使用应用的真实适配器连接 Garage，验证私有文件上传、签名下载、跨组织拒绝访问和删除。
+
+验收仅运行于 `adtrender-ci` 隔离项目，使用合成账号；失败时输出服务状态与已屏蔽生成密钥的容器日志，结束后删除该项目资源。工作流不发布镜像或部署服务。真实 SMTP、支付和来源采集仍需单独验收；备份恢复演练仍单独执行。
 
 确定的 SMTP 5xx 拒收会保留短期加密载荷，允许管理员修复配置后重试；最多尝试三次，成功、过期或达到上限时清理。投递结果为 `UNKNOWN` 的邮件保持禁止重试，避免重复投递。
