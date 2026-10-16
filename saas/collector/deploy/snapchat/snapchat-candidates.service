@@ -1,0 +1,14 @@
+[Unit]
+Description=Refresh Snapchat discovery from public advertiser names
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/snapchat-collector/code/export-candidates.py
+TimeoutStartSec=60
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/snapchat-collector/evidence
+PrivateTmp=true

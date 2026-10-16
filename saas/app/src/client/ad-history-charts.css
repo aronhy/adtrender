@@ -1,0 +1,32 @@
+.workspace-shell .ws-history-charts { margin: 22px 0; padding: 18px; border: 1px solid var(--n-100); border-radius: 8px; background: var(--n-000); min-width: 0; }
+.workspace-shell .ws-history-chart-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.workspace-shell .ws-history-chart-header h3 { margin: 0; font-size: 15px; font-weight: 650; }
+.workspace-shell .ws-history-chart-header > span, .workspace-shell .ws-history-chart-note { color: var(--ink-muted); font-size: 11px; line-height: 1.7; }
+.workspace-shell .ws-history-chart-note { margin: 9px 0 17px; }
+.workspace-shell .ws-history-chart-plot { display: grid; grid-template-columns: 50px minmax(0,1fr); gap: 8px; }
+.workspace-shell .ws-history-chart-ylabels { display: flex; flex-direction: column; justify-content: space-between; padding: 12px 0 22px; color: var(--n-500); font-size: 11px; }
+.workspace-shell .ws-history-status-chart { display: block; width: 100%; height: 110px; overflow: visible; }
+.workspace-shell .ws-history-chart-xlabels { display: flex; justify-content: space-between; padding-left: 58px; color: var(--ink-muted); font-size: 10px; }
+.workspace-shell .ws-history-source-strip { display: flex; gap: 4px; overflow-x: auto; list-style: none; padding: 7px 0; margin: 16px 0 9px; }
+.workspace-shell .ws-history-source-strip li { flex: 1 0 19px; }
+.workspace-shell .ws-history-charts .ws-history-status-button { display: grid; place-items: center; min-height: 28px; width: 100%; padding: 4px; border: 1px solid transparent; border-radius: 4px; color: var(--n-500); background: var(--n-050); cursor: pointer; }
+.workspace-shell .ws-history-status-button[data-status='ACTIVE'] { color: var(--status-active); background: var(--status-active-soft); }
+.workspace-shell .ws-history-status-button[data-status='INACTIVE'] { color: var(--status-inactive); background: var(--n-100); }
+.workspace-shell .ws-history-status-button[data-status='UNKNOWN'] { color: var(--status-unknown); background: var(--status-unknown-soft); }
+.workspace-shell .ws-history-status-button[data-status='MISSING'] { color: var(--ink-muted); background: repeating-linear-gradient(45deg, var(--status-missing) 0 4px, var(--n-100) 4px 8px); }
+.workspace-shell .ws-history-status-button[data-status='CONFLICT'] { color: var(--status-conflict); background: var(--status-conflict-soft); }
+.workspace-shell .ws-history-status-button[data-status='MIXED'] { color: var(--ink-secondary); background: linear-gradient(90deg, var(--status-active-soft) 50%, var(--status-unknown-soft) 50%); }
+.workspace-shell .ws-history-status-button[aria-pressed='true'] { border-color: var(--accent); outline: 1px solid var(--accent); outline-offset: 1px; }
+.workspace-shell .ws-history-chart-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 10px; color: var(--ink-muted); }
+.workspace-shell .ws-history-chart-legend > span { display: flex; align-items: center; gap: 4px; }
+.workspace-shell .ws-history-chart-tooltip { margin-top: 14px; padding: 10px 12px; border-radius: 6px; background: var(--n-025); color: var(--n-500); font-size: 11px; line-height: 1.6; }
+.workspace-shell .ws-history-chart-tooltip > div { display: flex; gap: 12px; align-items: center; }
+.workspace-shell .ws-history-chart-tooltip p { margin: 4px 0; }
+.workspace-shell .ws-history-chart-tooltip .text-button { min-height: 30px; padding: 4px 0; font-size: 11px; }
+.workspace-shell .ws-history-chart-keyboard-note { position: absolute; height: 1px; width: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+@media (max-width: 640px) {
+  .workspace-shell .ws-history-charts { padding: 14px 10px; }
+  .workspace-shell .ws-history-chart-plot { grid-template-columns: 40px minmax(0,1fr); gap: 5px; }
+  .workspace-shell .ws-history-chart-xlabels { padding-left: 45px; }
+  .workspace-shell .ws-history-charts .ws-history-status-button { min-height: 36px; }
+}

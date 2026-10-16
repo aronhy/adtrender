@@ -1,0 +1,32 @@
+# Replace both example domains; match REACT_APP_API_URL and server.env.
+research.example.com {
+    root * /srv/ad-research/current/public
+    encode zstd gzip
+    header {
+        Referrer-Policy no-referrer
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+    }
+    handle /assets/* {
+        header Cache-Control "public, max-age=31536000, immutable"
+        file_server
+    }
+    handle {
+        header Cache-Control no-cache
+        try_files {path} {path}/index.html /200.html
+        file_server {
+            index index.html 200.html
+        }
+    }
+}
+
+api.research.example.com {
+    header Referrer-Policy no-referrer
+    header Cache-Control no-store
+    reverse_proxy 127.0.0.1:3001 {
+        header_up X-Real-IP {remote_host}
+    }
+}
+
+# No access log is enabled: auth/invitation links contain one-time query tokens.
+# Expose only HTTPS/HTTP at the perimeter; keep the API port private.

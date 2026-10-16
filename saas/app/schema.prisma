@@ -1,0 +1,1385 @@
+// Wasp owns Auth, AuthIdentity and Session; do not add another password system.
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                     String    @id @default(uuid())
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  email                  String?   @unique
+  username               String?   @unique
+  isAdmin                Boolean   @default(false)
+  displayName            String?
+  disabledAt             DateTime?
+  notificationPreference Json      @default("{}")
+  onboardingState        Json      @default("{}")
+  onboardingCompletedAt  DateTime?
+  firstAdSavedAt         DateTime?
+
+  organizationMemberships OrganizationMember[]
+  sentInvitations         Invitation[]          @relation("InvitationSender")
+  createdTasks            CollectionTask[]
+  requestedRuns           CollectionRun[]
+  savedAds                SavedAd[]
+  notes                   Note[]
+  analysisJobs            AnalysisJob[]
+  auditEvents             AuditEvent[]
+  emailDeliveries         EmailDelivery[]
+  feedback                Feedback[]
+  accountSupportRequests  AccountSupportRequest[]
+  productEvents           ProductEvent[]
+  oauthCodeUses           OAuthCodeUse[]
+  conversionEvents        ConversionEvent[]
+}
+
+// First-party website attribution. No IP, email, location or product content.
+model GrowthVisit {
+  id             String    @id @default(uuid())
+  tokenHash      String    @unique
+  createdAt      DateTime  @default(now())
+  lastSeenAt     DateTime  @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  consentVersion String    @default("website-analytics.v2")
+  landingPath    String
+  source         String?
+  medium         String?
+  campaign       String?
+  content        String?
+  referrerOrigin String?
+  isTest         Boolean   @default(false)
+  events         GrowthEvent[]
+  conversions    ConversionEvent[]
+
+  @@index([createdAt, isTest])
+  @@index([expiresAt])
+}
+
+model GrowthEvent {
+  id        String   @id @default(uuid())
+  visitId   String
+  createdAt DateTime @default(now())
+  name      String // PAGE_VIEW | CTA_CLICK
+  pathname  String
+  target    String?
+  dedupeKey String   @unique
+  visit     GrowthVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@index([visitId, name, createdAt])
+}
+
+model ConversionEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  visitId   String
+  createdAt DateTime @default(now())
+  name      String // ACCOUNT_CREATED | REGISTRATION_VERIFIED | FIRST_AD_SAVED
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visit     GrowthVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([visitId, name])
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String
+  slug      String   @unique
+  status    String   @default("ACTIVE")
+
+  // Ownership is held by OrganizationMember(role=OWNER). Creation and the
+  // last-owner invariant require an atomic transaction and database trigger.
+  members         OrganizationMember[]
+  workspaces      Workspace[]
+  invitations     Invitation[]
+  subscription    Subscription?
+  billingEvents   BillingEvent[]
+  entitlements    Entitlement[]
+  usageLedger     UsageLedger[]
+  auditEvents     AuditEvent[]
+  emailDeliveries EmailDelivery[]
+  feedback        Feedback[]
+  productEvents   ProductEvent[]
+}
+
+model OrganizationMember {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+  userId         String
+  role           String   @default("MEMBER") // OWNER | ADMIN | MEMBER
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  workspaces   WorkspaceMember[]
+
+  @@unique([organizationId, userId])
+  @@index([userId, organizationId])
+  @@index([organizationId, role])
+}
+
+model Workspace {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+  name           String
+  slug           String
+  archivedAt     DateTime?
+
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  members         WorkspaceMember[]
+  invitations     Invitation[]
+  folders         Folder[]
+  savedAds        SavedAd[]
+  notes           Note[]
+  analysisJobs    AnalysisJob[]
+  analysisResults AnalysisResult[]
+  privateFiles    PrivateFile[]
+  auditEvents     AuditEvent[]
+  feedback        Feedback[]
+  productEvents   ProductEvent[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, slug])
+}
+
+model WorkspaceMember {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+  workspaceId    String
+  userId         String
+  role           String   @default("VIEWER") // EDITOR | VIEWER
+
+  workspace Workspace          @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  member    OrganizationMember @relation(fields: [organizationId, userId], references: [organizationId, userId], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([organizationId, userId])
+}
+
+model Invitation {
+  id              String    @id @default(uuid())
+  createdAt       DateTime  @default(now())
+  organizationId  String
+  workspaceId     String?
+  email           String
+  role            String    @default("MEMBER")
+  workspaceRole   String? // EDITOR | VIEWER, required when workspaceId is set.
+  tokenHash       String    @unique // Store only a cryptographic digest.
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  revokedAt       DateTime?
+  invitedByUserId String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace?   @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  invitedBy    User?        @relation("InvitationSender", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, email, expiresAt])
+  @@index([workspaceId, organizationId])
+}
+
+model PlanVersion {
+  id                   String   @id @default(uuid())
+  createdAt            DateTime @default(now())
+  key                  String
+  version              Int
+  name                 String
+  status               String   @default("DRAFT")
+  currency             String?
+  priceMinor           Int?
+  billingInterval      String   @default("MONTH")
+  trialDays            Int      @default(0)
+  workspaceLimit       Int      @default(0)
+  memberLimit          Int      @default(0)
+  savedAdLimit         Int      @default(0)
+  monthlyAnalysisLimit Int      @default(0)
+  providerPriceId      String?
+  verifiedProviderMode String? // Set only after a fresh provider price check: TEST or LIVE.
+  publicConfirmedAt    DateTime? // Explicit publication approval; ACTIVE alone is never public.
+
+  subscriptions          Subscription[] @relation("CurrentSubscriptionPlan")
+  scheduledSubscriptions Subscription[] @relation("ScheduledSubscriptionPlan")
+
+  @@unique([key, version])
+  @@index([status, key])
+}
+
+model Subscription {
+  id                     String    @id @default(uuid())
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  organizationId         String    @unique
+  planVersionId          String
+  provider               String    @default("UNCONFIGURED")
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  status                 String    @default("INACTIVE")
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  trialEndsAt            DateTime?
+  cancelAtPeriodEnd      Boolean   @default(false)
+  canceledAt             DateTime?
+  scheduledPlanVersionId String? // Applied only after verified renewal.
+  lastProviderEventAt    DateTime?
+  lastReconciledAt       DateTime?
+  version                Int       @default(0)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  planVersion  PlanVersion    @relation("CurrentSubscriptionPlan", fields: [planVersionId], references: [id], onDelete: Restrict)
+  scheduledPlanVersion PlanVersion? @relation("ScheduledSubscriptionPlan", fields: [scheduledPlanVersionId], references: [id], onDelete: Restrict)
+  billingEvents BillingEvent[]
+
+  @@unique([id, organizationId])
+  @@unique([provider, providerSubscriptionId])
+  @@index([status, currentPeriodEnd])
+}
+
+model BillingEvent {
+  id               String    @id @default(uuid())
+  createdAt        DateTime  @default(now())
+  organizationId   String
+  subscriptionId   String?
+  provider         String
+  providerEventId  String
+  eventType        String
+  providerOccurredAt DateTime
+  verifiedAt       DateTime
+  processedAt      DateTime?
+  status           String    @default("RECEIVED")
+  errorCode        String?
+  payloadReference String? // Encrypted object-store evidence, never a logged webhook body.
+  payloadSha256    String
+  metadata         Json      @default("{}")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  subscription Subscription? @relation(fields: [subscriptionId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([provider, providerEventId])
+  @@index([organizationId, createdAt])
+  @@index([status, createdAt])
+}
+
+model Entitlement {
+  id             String    @id @default(uuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  organizationId String
+  key            String // WORKSPACES | MEMBERS | SAVED_ADS | ANALYSES
+  limit          Int       @default(0)
+  used           Int       @default(0)
+  reserved       Int       @default(0)
+  validFrom      DateTime  @default(now())
+  validUntil     DateTime?
+  periodStart    DateTime  @default(now())
+  periodEnd      DateTime?
+  source         String    @default("PLAN")
+  version        Int       @default(0)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  usageLedger  UsageLedger[]
+
+  @@unique([organizationId, key, periodStart])
+  @@unique([id, organizationId])
+  @@index([organizationId, key, validUntil])
+}
+
+model UsageLedger {
+  id             String    @id @default(uuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  organizationId String
+  entitlementId  String
+  idempotencyKey String
+  quantity       Int       @default(1)
+  status         String    @default("RESERVED") // RESERVED -> SETTLED | RELEASED
+  reservedAt     DateTime  @default(now())
+  settledAt      DateTime?
+  releasedAt     DateTime?
+  releaseReason  String?
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  entitlement  Entitlement   @relation(fields: [entitlementId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  analysisJobs AnalysisJob[]
+
+  @@unique([organizationId, idempotencyKey])
+  @@unique([id, organizationId])
+  @@index([entitlementId, status])
+}
+
+model DataSource {
+  id                 String   @id @default(uuid())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  key                String   @unique
+  name               String
+  status             String   @default("DISABLED")
+  adapterVersion     String
+  configuration      Json     @default("{}") // Non-secret configuration only.
+  credentialReference String? // Secret-manager reference, never the credential.
+  capabilities       Json     @default("{}")
+  lastSuccessfulAt   DateTime?
+  lastErrorCode       String?
+
+  tasks       CollectionTask[]
+  advertisers Advertiser[]
+  ads         Ad[]
+  seedQueries SeedQuery[]
+  seedScanPlans SeedScanPlan[]
+  seedEvidence SeedEvidence[]
+  seedAttempts SeedAttempt[]
+  collectorSourceControls CollectorSourceControl[]
+  collectorSourceAssignments CollectorSourceAssignment[]
+
+  @@unique([id, key])
+}
+
+model CollectionTask {
+  id              String    @id @default(uuid())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  dataSourceId    String
+  createdByUserId String?
+  name            String
+  query           Json
+  status          String    @default("PAUSED")
+  scheduleCron    String?
+  scheduleTimezone String   @default("UTC")
+  nextRunAt       DateTime?
+  pausedAt        DateTime?
+  maxItems        Int       @default(20)
+  maxAttempts     Int       @default(3)
+
+  dataSource DataSource      @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  createdBy  User?           @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  runs       CollectionRun[]
+
+  @@unique([id, dataSourceId])
+  @@index([status, nextRunAt])
+}
+
+model CollectionRun {
+  id                String    @id @default(uuid())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  taskId            String
+  dataSourceId      String
+  requestedByUserId String?
+  idempotencyKey    String    @unique
+  scheduledFor     DateTime?
+  querySnapshot    Json
+  adapterVersion   String
+  status           String    @default("QUEUED")
+  queuedAt         DateTime  @default(now())
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  cancelRequestedAt DateTime?
+  leaseOwner       String?
+  leaseVersion     Int       @default(0)
+  leaseExpiresAt   DateTime?
+  heartbeatAt      DateTime?
+  attempt          Int       @default(0)
+  nextAttemptAt    DateTime?
+  fetchedCount     Int       @default(0)
+  insertedCount    Int       @default(0)
+  updatedCount     Int       @default(0)
+  quarantinedCount Int       @default(0)
+  errorCode        String?
+  errorMessage     String? // Sanitized; credentials and source tokens must be removed.
+  restrictionReason String?
+  coverage         Json      @default("{}")
+  evidenceReference String?
+
+  task        CollectionTask @relation(fields: [taskId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  requestedBy User?          @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  items       RunItem[]
+  observations AdObservation[]
+  seedEvidence SeedEvidence[]
+  seedAttempts SeedAttempt[]
+
+  @@unique([taskId, scheduledFor])
+  @@unique([id, dataSourceId])
+  @@index([status, nextAttemptAt, queuedAt])
+  @@index([status, leaseExpiresAt])
+}
+
+model RunItem {
+  id                String   @id @default(uuid())
+  createdAt         DateTime @default(now())
+  runId             String
+  dataSourceId      String
+  itemKey           String // Batch-local identifier; not a guessed source ad identity.
+  sourceAdId        String?
+  adId              String?
+  status            String   @default("PENDING")
+  errorCode         String?
+  evidenceReference String?
+  evidenceSha256    String?
+  parserVersion     String
+
+  run CollectionRun @relation(fields: [runId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  ad  Ad?           @relation(fields: [adId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+
+  @@unique([runId, itemKey])
+  @@index([runId, status])
+  @@index([adId, dataSourceId])
+}
+
+model WorkerHeartbeat {
+  id            String   @id // Per-process worker identifier; no credentials.
+  startedAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  status        String   @default("IDLE")
+  version       String
+  capabilities  String[] @default([])
+  activeRunId   String?
+  metadata      Json     @default("{}")
+
+  @@index([lastSeenAt])
+}
+
+model Advertiser {
+  id                 String   @id @default(uuid())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  dataSourceId       String
+  sourceAdvertiserId String
+  name               String?
+  sourceUrl          String?
+  pageDomain         String? // Observed page domain, not verified business identity.
+  fieldProvenance    Json     @default("{}")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  ads        Ad[]
+
+  @@unique([dataSourceId, sourceAdvertiserId])
+  @@unique([id, dataSourceId])
+  @@index([name])
+}
+
+model Ad {
+  id                 String    @id @default(uuid())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  dataSourceId       String
+  sourceAdId         String // Required stable identity; missing IDs stay in RunItem quarantine.
+  advertiserId       String?
+  sourceUrl          String
+  body               String?
+  headline           String?
+  cta                String?
+  landingPageUrl     String?
+  publisherPlatforms String[]  @default([]) // Empty means unknown, never implicitly Facebook.
+  reportedCountries  String[]  @default([]) // Only source-reported targeting, not query country.
+  mediaType          String    @default("UNKNOWN")
+  sourceStatus       String    @default("UNKNOWN")
+  statusObservedAt   DateTime?
+  sourceStartedAt    DateTime?
+  sourceEndedAt      DateTime?
+  firstObservedAt    DateTime?
+  lastObservedAt     DateTime?
+  fieldProvenance    Json      @default("{}")
+
+  dataSource  DataSource      @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  advertiser  Advertiser?     @relation(fields: [advertiserId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  observations AdObservation[]
+  media       MediaObject[]
+  runItems    RunItem[]
+  savedAds    SavedAd[]
+  analysisJobs AnalysisJob[]
+  productEvents ProductEvent[]
+  dailySnapshots AdDailySnapshot[]
+  historyEvents AdHistoryEvent[]
+  historyProjectionTask AdHistoryProjectionTask?
+  seedAttemptMatches SeedAttemptMatch[]
+
+  @@unique([dataSourceId, sourceAdId])
+  @@unique([id, dataSourceId])
+  @@index([lastObservedAt(sort: Desc), id(sort: Desc)])
+  @@index([advertiserId, lastObservedAt(sort: Desc), id(sort: Desc)])
+  @@index([mediaType, sourceStatus, lastObservedAt(sort: Desc), id(sort: Desc)])
+  @@index([publisherPlatforms], type: Gin)
+  @@index([reportedCountries], type: Gin)
+}
+
+model AdObservation {
+  id                String   @id @default(uuid())
+  createdAt         DateTime @default(now())
+  adId              String
+  dataSourceId      String
+  collectionRunId   String
+  observedAt        DateTime
+  sourceStatus      String   @default("UNKNOWN")
+  queryCountry      String?
+  snapshot          Json
+  fieldProvenance   Json     @default("{}")
+  evidenceReference String?
+  evidenceSha256    String?
+  parserVersion     String
+
+  ad   Ad            @relation(fields: [adId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  run  CollectionRun @relation(fields: [collectionRunId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  media MediaObject[]
+  latestHistoryDays AdDailySnapshot[] @relation("HistoryLatestObservation")
+  historyEventsBefore AdHistoryEvent[] @relation("HistoryBeforeObservation")
+  historyEventsAfter AdHistoryEvent[] @relation("HistoryAfterObservation")
+  seedEvidence SeedEvidence[]
+
+  @@unique([id, adId, dataSourceId])
+  @@unique([adId, collectionRunId])
+  @@unique([id, adId])
+  @@index([adId, observedAt(sort: Desc)])
+}
+
+// Public source media only. Customer uploads are in PrivateFile so a nullable
+// tenancy field cannot silently turn a private object into a public object.
+model MediaObject {
+  id             String    @id @default(uuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  adId           String
+  observationId  String?
+  sourceMediaId  String?
+  sourceUrl      String
+  type           String    @default("UNKNOWN")
+  mimeType       String?
+  status         String    @default("PENDING")
+  storageKey     String?   @unique
+  sha256         String?
+  sizeBytes      BigInt?
+  width          Int?
+  height         Int?
+  durationMs     Int?
+  displayOrder   Int       @default(0)
+  downloadedAt   DateTime?
+  downloadAttempts      Int       @default(0)
+  lastDownloadAttemptAt DateTime?
+  nextDownloadAttemptAt DateTime?
+  expiresAt      DateTime?
+  errorCode      String?
+
+  ad          Ad             @relation(fields: [adId], references: [id], onDelete: Restrict)
+  observation AdObservation? @relation(fields: [observationId, adId], references: [id, adId], onDelete: Restrict)
+
+  @@unique([adId, sourceUrl])
+  @@index([adId, displayOrder])
+  @@index([status, expiresAt])
+  @@index([status, nextDownloadAttemptAt])
+}
+
+model Folder {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+  workspaceId    String
+  name           String
+
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  savedAds  SavedAd[]
+
+  @@unique([id, workspaceId, organizationId])
+  @@unique([workspaceId, name])
+  @@index([organizationId, workspaceId])
+}
+
+model SavedAd {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+  workspaceId    String
+  adId           String
+  folderId       String?
+  savedByUserId  String?
+
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  ad        Ad        @relation(fields: [adId], references: [id], onDelete: Restrict)
+  folder    Folder?   @relation(fields: [folderId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  savedBy   User?     @relation(fields: [savedByUserId], references: [id], onDelete: SetNull)
+  notes     Note[]
+
+  @@unique([workspaceId, adId])
+  @@unique([id, workspaceId, organizationId])
+  @@index([organizationId, workspaceId, createdAt(sort: Desc)])
+  @@index([folderId, workspaceId, organizationId])
+}
+
+model Note {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+  workspaceId    String
+  savedAdId      String
+  authorUserId   String?
+  body           String
+
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  savedAd   SavedAd   @relation(fields: [savedAdId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  author    User?     @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([id, workspaceId, organizationId])
+  @@index([organizationId, workspaceId, savedAdId])
+}
+
+model PrivateFile {
+  id             String    @id @default(uuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  organizationId String
+  workspaceId    String
+  storageKey     String    @unique
+  filename       String
+  mimeType       String
+  sizeBytes      BigInt
+  sha256         String
+  status         String    @default("PENDING")
+  expiresAt      DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([id, workspaceId, organizationId])
+  @@index([organizationId, workspaceId, createdAt])
+  @@index([status, expiresAt])
+}
+
+model AnalysisJob {
+  id                String    @id @default(uuid())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  organizationId    String
+  workspaceId       String
+  requestedByUserId String?
+  adId              String?
+  usageLedgerId     String?   @unique
+  idempotencyKey    String
+  status            String    @default("QUEUED")
+  inputSnapshot     Json
+  inputSha256       String
+  model             String
+  promptVersion     String
+  leaseOwner        String?
+  leaseVersion      Int       @default(0)
+  leaseExpiresAt    DateTime?
+  attempt           Int       @default(0)
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  errorCode         String?
+  inputTokens       Int?
+  outputTokens      Int?
+
+  workspace   Workspace       @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  requestedBy User?           @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  ad          Ad?             @relation(fields: [adId], references: [id], onDelete: Restrict)
+  usageLedger UsageLedger?    @relation(fields: [usageLedgerId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  results     AnalysisResult[]
+
+  @@unique([workspaceId, idempotencyKey])
+  @@unique([id, workspaceId, organizationId])
+  @@index([organizationId, workspaceId, createdAt(sort: Desc)])
+  @@index([status, leaseExpiresAt, createdAt])
+}
+
+model AnalysisResult {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  organizationId String
+  workspaceId    String
+  analysisJobId  String   @unique
+  facts          Json
+  inferences     Json
+  evidence       Json
+  limitations    Json     @default("[]")
+  model          String
+  promptVersion  String
+
+  workspace Workspace   @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  job       AnalysisJob @relation(fields: [analysisJobId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+
+  @@unique([id, workspaceId, organizationId])
+  @@index([organizationId, workspaceId, createdAt(sort: Desc)])
+}
+
+model AuditEvent {
+  id                 String   @id @default(uuid())
+  createdAt          DateTime @default(now())
+  organizationId     String?
+  workspaceId        String?
+  actorUserId        String?
+  action             String
+  targetType         String
+  targetId           String?
+  requestId          String?
+  supportAuthorizationReference String?
+  metadata           Json     @default("{}") // Redacted facts, never raw requests or tokens.
+  expiresAt          DateTime?
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace?    @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  actor        User?         @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([workspaceId, organizationId])
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@index([expiresAt])
+}
+
+model EmailDelivery {
+  id               String    @id @default(uuid())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  organizationId   String?
+  userId           String?
+  recipientEmail   String
+  templateKey      String
+  dedupeKey        String    @unique
+  status           String    @default("QUEUED")
+  provider         String?
+  providerMessageId String?
+  metadata         Json      @default("{}") // Non-sensitive template metadata only.
+  encryptedPayload String? // Short-lived encrypted message/link payload for durable retries.
+  encryptionKeyVersion String?
+  payloadExpiresAt DateTime?
+  attempts         Int       @default(0)
+  nextAttemptAt    DateTime  @default(now())
+  leaseOwner       String?
+  leaseExpiresAt   DateTime?
+  sentAt           DateTime?
+  lastErrorCode    String?
+  expiresAt        DateTime?
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerMessageId])
+  @@index([status, nextAttemptAt])
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model Feedback {
+  id             String    @id @default(uuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  organizationId String
+  workspaceId    String?
+  userId         String?
+  category       String    @default("GENERAL") // Includes DATA_REQUEST and DELETION_REQUEST.
+  subject        String
+  body           String
+  status         String    @default("OPEN")
+  resolvedAt     DateTime?
+  expiresAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace?   @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([workspaceId, organizationId])
+  @@index([status, createdAt])
+  @@index([expiresAt])
+}
+
+model ProductEvent {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  organizationId String
+  workspaceId    String
+  userId         String?
+  adId           String?
+  name           String // ad_detail_open | source_link_click | media_play
+  metadata       Json     @default("{}")
+  expiresAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace    @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ad           Ad?          @relation(fields: [adId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, name, createdAt])
+  @@index([workspaceId, organizationId])
+  @@index([expiresAt])
+}
+
+model RateLimitBucket {
+  id          String   @id // Hash(scope + principal + window); never a raw email/IP/token.
+  scope       String // Separate REGISTER, LOGIN, EMAIL, SEARCH and ANALYSIS policies.
+  principalHash String
+  windowStart DateTime
+  expiresAt   DateTime
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([scope, principalHash, windowStart])
+  @@index([expiresAt])
+}
+
+// Purpose-bound, single-use envelopes around Wasp-generated email JWT links.
+// Password hashing, verification and sessions remain entirely Wasp-owned.
+model AuthLink {
+  id               String @id @default(uuid())
+  createdAt        DateTime @default(now())
+  tokenHash        String @unique
+  purpose          String
+  recipientEmail   String
+  encryptedPayload String
+  expiresAt        DateTime
+  consumedAt       DateTime?
+
+  @@index([expiresAt])
+}
+
+// Durable replay receipts for Wasp's one-minute OAuth JWTs. The original code
+// and provider credentials are never stored; Session remains Wasp-owned.
+model OAuthCodeUse {
+  tokenHash  String   @id
+  userId     String
+  authId     String
+  source     String   @default("GOOGLE")
+  expiresAt  DateTime
+  consumedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+// Support requests can precede organization onboarding. Deletion requests are
+// reviewed by support and never authorize automatic account/data deletion.
+model AccountSupportRequest {
+  id         String    @id @default(uuid())
+  userId     String
+  kind       String // FEEDBACK | DELETION_REQUEST
+  body       String
+  status     String    @default("OPEN") // OPEN | RESOLVED
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+
+// Rebuildable public evidence projections. No customer or ingestion permissions implied.
+model AdDailySnapshot {
+  id String @id @default(uuid())
+  adId String
+  dataSourceId String
+  day DateTime @db.Date
+  timezone String @default("Asia/Shanghai")
+  scopeHash String
+  scopeKind String
+  sourceKey String
+  queryCountry String?
+  queryLanguage String?
+  observationCount Int
+  activeObservationCount Int @default(0)
+  inactiveObservationCount Int @default(0)
+  firstObservedAt DateTime
+  lastObservedAt DateTime
+  latestObservationId String
+  latestSourceStatus String
+  hasStateConflict Boolean @default(false)
+  contentKey String?
+  updatedAt DateTime @updatedAt
+
+  ad Ad @relation(fields: [adId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  latestObservation AdObservation @relation("HistoryLatestObservation", fields: [latestObservationId, adId, dataSourceId], references: [id, adId, dataSourceId], onDelete: Restrict)
+
+  @@unique([adId, day, timezone, scopeHash])
+  @@index([adId, day, scopeHash])
+}
+
+model AdHistoryEvent {
+  id String @id @default(uuid())
+  adId String
+  dataSourceId String
+  type String
+  beforeObservationId String
+  afterObservationId String
+  observedAt DateTime
+  scopeHash String
+
+  ad Ad @relation(fields: [adId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  beforeObservation AdObservation @relation("HistoryBeforeObservation", fields: [beforeObservationId, adId, dataSourceId], references: [id, adId, dataSourceId], onDelete: Restrict)
+  afterObservation AdObservation @relation("HistoryAfterObservation", fields: [afterObservationId, adId, dataSourceId], references: [id, adId, dataSourceId], onDelete: Restrict)
+
+  @@unique([adId, beforeObservationId, afterObservationId, type, scopeHash], map: "AdHistoryEvent_evidence_key")
+  @@index([adId, observedAt, id])
+}
+
+model AdHistoryProjectionTask {
+  adId String @id
+  dataSourceId String
+  revision BigInt @default(1)
+  completedRevision BigInt @default(0)
+  leaseOwner String?
+  leaseVersion Int @default(0)
+  leaseExpiresAt DateTime?
+  nextAttemptAt DateTime @default(now())
+  attempts Int @default(0)
+  errorCode String?
+  updatedAt DateTime @default(now())
+
+  ad Ad @relation(fields: [adId, dataSourceId], references: [id, dataSourceId], onDelete: Cascade)
+  @@unique([adId, dataSourceId])
+  @@index([nextAttemptAt, leaseExpiresAt])
+}
+
+model AdHistoryBackfillCursor {
+  id String @id
+  scopeAdIds String[] @default([])
+  lastAdId String?
+  completed Boolean @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+// Immutable capture of successfully stored public bytes. URL matching alone is
+// not an association to bytes at an older observation time. Raw FK and mutation
+// triggers live in 20261008170000_ad_media_archive; mutable models stay unchanged.
+model ArchiveMediaCapture {
+  id String @id @default(dbgenerated("gen_random_uuid()::text"))
+  adId String
+  mediaObjectId String
+  sourceUrl String
+  objectKey String
+  sha256 String
+  type String
+  mimeType String
+  sizeBytes BigInt
+  downloadedAt DateTime?
+  recordedAt DateTime @default(now())
+  captureKind String
+
+  @@unique([adId, sourceUrl, sha256])
+  @@index([adId, recordedAt, id])
+  @@index([objectKey])
+}
+
+// Seed intent, executable query identity and execution facts have separate lifetimes.
+model SeedDefinition {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  kind String
+  namespace String
+  rawValue String
+  normalizedValue String
+  language String @default("und")
+  purposeTags Json @default("[]")
+  targetScope Json
+  targetPlatforms String[] @default([])
+  status String @default("DRAFT")
+  priority Int @default(0)
+  revision Int @default(1)
+  verificationStatus String @default("CANDIDATE")
+  createdByUserId String?
+  mergedIntoSeedId String?
+  mergedInto SeedDefinition? @relation("SeedMerge", fields: [mergedIntoSeedId], references: [id], onDelete: Restrict)
+  mergedSeeds SeedDefinition[] @relation("SeedMerge")
+  evidence SeedEvidence[]
+  relationsFrom SeedRelation[] @relation("SeedRelationFrom")
+  relationsTo SeedRelation[] @relation("SeedRelationTo")
+  bindings SeedQueryBinding[]
+  primaryAttempts SeedAttempt[]
+  matches SeedAttemptMatch[]
+  @@unique([kind, namespace, language, normalizedValue])
+  @@index([status, createdAt])
+  @@index([normalizedValue])
+}
+
+model SeedScanPlan {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  revision Int @default(1)
+  dataSourceId String
+  sourceKey String
+  targetScope Json
+  datePolicy Json
+  category String @default("ALL")
+  status String @default("DRAFT")
+  evidence Json @default("{}")
+  source DataSource @relation(fields: [dataSourceId, sourceKey], references: [id, key], onDelete: Restrict)
+  bindings SeedQueryBinding[]
+  primaryAttempts SeedAttempt[]
+  @@index([sourceKey, status])
+}
+
+model SeedEvidence {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  seedId String
+  dedupeKey String @unique
+  originKind String
+  sourceUrl String?
+  dataSourceId String?
+  observationId String?
+  adId String?
+  runId String?
+  sourceAdId String?
+  evidenceSha256 String?
+  observedAt DateTime?
+  extractionVersion String
+  fieldPath String?
+  rawValue String?
+  normalizedValue String?
+  role String?
+  seed SeedDefinition @relation(fields: [seedId], references: [id], onDelete: Restrict)
+  source DataSource? @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  run CollectionRun? @relation(fields: [runId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  observation AdObservation? @relation(fields: [observationId, adId, dataSourceId], references: [id, adId, dataSourceId], onDelete: Restrict)
+  matches SeedAttemptMatch[]
+  @@index([seedId, observedAt])
+  @@index([runId])
+}
+
+model SeedRelation {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  fromSeedId String
+  toSeedId String
+  relationType String
+  status String @default("PENDING")
+  evidenceIds String[] @default([])
+  decisionReason String?
+  decidedByUserId String?
+  fromSeed SeedDefinition @relation("SeedRelationFrom", fields: [fromSeedId], references: [id], onDelete: Restrict)
+  toSeed SeedDefinition @relation("SeedRelationTo", fields: [toSeedId], references: [id], onDelete: Restrict)
+  @@unique([fromSeedId, toSeedId, relationType])
+  @@index([status, createdAt])
+}
+
+model SeedQuery {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  dataSourceId String
+  sourceKey String
+  channel String
+  mode String
+  queryCountry String?
+  queryLanguage String?
+  normalizedParams Json @default("{}")
+  queryKey String
+  queryKeyVersion String
+  adapterVersion String
+  capabilityVersion String
+  legacyDims Json @default("{}")
+  status String @default("READY")
+  desiredEnabled Boolean @default(false)
+  controlMode String @default("LEGACY_QUEUE") // Read-only mirror of source control.
+  assignmentGeneration Int @default(0)
+  source DataSource @relation(fields: [dataSourceId, sourceKey], references: [id, key], onDelete: Restrict)
+  bindings SeedQueryBinding[]
+  legacyMappings LegacyJobMapping[]
+  tasks SeedExecutionTask[]
+  runtime SeedRuntimeState?
+  attempts SeedAttempt[]
+  @@unique([sourceKey, channel, queryKey])
+  @@unique([id, dataSourceId, sourceKey])
+  @@index([sourceKey, status])
+}
+
+model SeedQueryBinding {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  queryId String
+  ownerKind String
+  seedId String?
+  scanPlanId String?
+  legacyOwnerKey String?
+  ownerRevision Int
+  participationStatus String @default("ACTIVE")
+  purposeSnapshot Json @default("[]")
+  validFromRevision Int
+  validToRevision Int?
+  query SeedQuery @relation(fields: [queryId], references: [id], onDelete: Restrict)
+  seed SeedDefinition? @relation(fields: [seedId], references: [id], onDelete: Restrict)
+  scanPlan SeedScanPlan? @relation(fields: [scanPlanId], references: [id], onDelete: Restrict)
+  @@unique([queryId, seedId, ownerRevision, validFromRevision])
+  @@unique([queryId, scanPlanId, ownerRevision, validFromRevision])
+  @@unique([queryId, legacyOwnerKey, ownerRevision, validFromRevision])
+  @@index([queryId, participationStatus, validToRevision])
+}
+
+model LegacyJobMapping {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  dataSourceId String
+  sourceKey String
+  queryId String
+  nativeJobId String
+  legacyKeyVersion String
+  initialCheckpointDigest String?
+  query SeedQuery @relation(fields: [queryId, dataSourceId, sourceKey], references: [id, dataSourceId, sourceKey], onDelete: Restrict)
+  @@unique([sourceKey, nativeJobId])
+  @@index([queryId])
+}
+
+model SeedExecutionTask {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  queryId String
+  dataSourceId String
+  sourceKey String
+  cycleKey String
+  workUnitKey String
+  state String @default("READY")
+  notBefore DateTime @default(now())
+  publicationRevision Int
+  schedulePolicyVersion String
+  cancelReason String?
+  outcome String?
+  completedAt DateTime?
+  query SeedQuery @relation(fields: [queryId, dataSourceId, sourceKey], references: [id, dataSourceId, sourceKey], onDelete: Restrict)
+  attempts SeedTaskAttempt[]
+  @@unique([queryId, cycleKey, workUnitKey])
+  @@unique([id, dataSourceId, sourceKey])
+  @@index([state, notBefore, createdAt])
+}
+
+model SeedTaskAttempt {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  taskId String
+  dataSourceId String
+  sourceKey String
+  attemptNo Int
+  nodeId String
+  incarnationId String
+  assignmentGeneration Int
+  leaseVersion Int
+  tokenHash String @unique
+  leaseExpiresAt DateTime
+  heartbeatAt DateTime?
+  startedAt DateTime?
+  requestDeadline DateTime?
+  stopReason String?
+  bindingSnapshot Json @default("[]")
+  primaryOwner Json?
+  lastReceiptSeq Int @default(0)
+  publicationRevision Int
+  configHash String
+  claimRequestId String?
+  claimPayloadHash String?
+  checkpointSequence Int @default(0)
+  state String @default("LEASED")
+  task SeedExecutionTask @relation(fields: [taskId, dataSourceId, sourceKey], references: [id, dataSourceId, sourceKey], onDelete: Restrict)
+  node CollectorNode @relation(fields: [nodeId], references: [nodeId], onDelete: Restrict)
+  batches SeedAttempt[]
+  @@unique([taskId, attemptNo])
+  @@unique([nodeId, incarnationId, claimRequestId])
+  @@unique([id, dataSourceId, sourceKey])
+  @@index([state, leaseExpiresAt])
+}
+
+model SeedRuntimeState {
+  queryId String @id
+  updatedAt DateTime @updatedAt
+  dataSourceId String
+  sourceKey String
+  collectorId String?
+  assignmentGeneration Int @default(0)
+  nativeJobId String?
+  desiredRevision Int @default(0)
+  appliedRevision Int @default(0)
+  executionState String @default("IDLE")
+  nextAllowedAt DateTime?
+  lastAttemptAt DateTime?
+  checkpointDigest String?
+  seenCount Int @default(0)
+  lastReportedAt DateTime?
+  checkpointVersion Int @default(0)
+  checkpointSequence Int @default(0)
+  checkpointRef String?
+  checkpointSha String?
+  lastAppliedBatchHashes Json @default("[]")
+  pendingManifestRef String?
+  stateSchemaVersion Int @default(1)
+  sessionAffinity String?
+  query SeedQuery @relation(fields: [queryId, dataSourceId, sourceKey], references: [id, dataSourceId, sourceKey], onDelete: Restrict)
+  @@unique([queryId, dataSourceId, sourceKey])
+}
+
+model SeedAttempt {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  queryId String?
+  dataSourceId String
+  sourceKey String
+  taskAttemptId String?
+  primarySeedId String?
+  primaryScanPlanId String?
+  runId String
+  batchSha256 String
+  bindingSnapshot Json @default("[]")
+  attributionQuality String @default("UNATTRIBUTED")
+  outcome String
+  outcomeEvidence Json @default("{}")
+  exhausted Boolean @default(false)
+  restrictionReason String?
+  startedAt DateTime
+  finishedAt DateTime
+  fetchedCount Int @default(0)
+  insertedCount Int @default(0)
+  updatedCount Int @default(0)
+  source DataSource @relation(fields: [dataSourceId, sourceKey], references: [id, key], onDelete: Restrict)
+  query SeedQuery? @relation(fields: [queryId, dataSourceId, sourceKey], references: [id, dataSourceId, sourceKey], onDelete: Restrict)
+  taskAttempt SeedTaskAttempt? @relation(fields: [taskAttemptId, dataSourceId, sourceKey], references: [id, dataSourceId, sourceKey], onDelete: Restrict)
+  primarySeed SeedDefinition? @relation(fields: [primarySeedId], references: [id], onDelete: Restrict)
+  primaryScanPlan SeedScanPlan? @relation(fields: [primaryScanPlanId], references: [id], onDelete: Restrict)
+  run CollectionRun @relation(fields: [runId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  matches SeedAttemptMatch[]
+  @@unique([sourceKey, batchSha256])
+  @@unique([id, dataSourceId])
+  @@index([queryId, startedAt])
+  @@index([runId])
+}
+
+model SeedAttemptMatch {
+  id String @id @default(uuid())
+  attemptId String
+  seedId String
+  adId String
+  dataSourceId String
+  matchRole String
+  evidenceId String?
+  attempt SeedAttempt @relation(fields: [attemptId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  seed SeedDefinition @relation(fields: [seedId], references: [id], onDelete: Restrict)
+  ad Ad @relation(fields: [adId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
+  evidence SeedEvidence? @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+  @@unique([attemptId, seedId, adId])
+}
+
+model SeedPublication {
+  id String @id @default(uuid())
+  revision Int @unique
+  parentRevision Int?
+  manifestHash String
+  configSnapshot Json
+  status String @default("PUBLISHED")
+  reason String
+  createdByUserId String?
+  createdAt DateTime @default(now())
+  receipts SeedCollectorReceipt[]
+  @@unique([id, revision])
+}
+
+model SeedCollectorReceipt {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  publicationId String?
+  publicationRevision Int?
+  manifestHash String?
+  nodeId String
+  incarnationId String
+  sequence Int
+  type String
+  payloadHash String
+  payload Json @default("{}")
+  applyStatus String?
+  appliedAt DateTime?
+  queryCounts Json @default("{}")
+  nativeJobMappings Json @default("[]")
+  errorCode String?
+  lastSeenAt DateTime @default(now())
+  node CollectorNode @relation(fields: [nodeId], references: [nodeId], onDelete: Restrict)
+  publication SeedPublication? @relation(fields: [publicationId, publicationRevision], references: [id, revision], onDelete: Restrict)
+  @@unique([nodeId, incarnationId, sequence])
+  @@index([publicationId, type])
+}
+
+model SeedImportJob {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  actorUserId String
+  fileHash String
+  status String
+  previewRevision Int
+  rowResults Json @default("[]")
+  counts Json @default("{}")
+  idempotencyKey String @unique
+  expiresAt DateTime
+}
+
+model CollectorNode {
+  nodeId String @id
+  incarnationId String
+  registryRevision Int
+  enabled Boolean @default(false)
+  expiresAt DateTime?
+  status String @default("REGISTERED")
+  codeRevision String
+  protocolVersions Int[] @default([])
+  capabilityDigest String?
+  resourceSnapshot Json @default("{}")
+  lastHeartbeatAt DateTime?
+  attempts SeedTaskAttempt[]
+  receipts SeedCollectorReceipt[]
+  @@index([enabled, status, expiresAt])
+  sourceAssignments CollectorSourceAssignment[]
+}
+
+model CollectorSourceControl {
+  id String @id @default(uuid())
+  dataSourceId String
+  sourceKey String
+  channel String
+  scopeKey String
+  notBefore DateTime @default(now())
+  restrictionCount Int @default(0)
+  manualPause Boolean @default(false)
+  reason String?
+  retryAfterUntil DateTime?
+  controlVersion Int @default(0)
+  lastEvidenceAt DateTime?
+  controlMode String @default("LEGACY_QUEUE")
+  assignmentGeneration Int @default(0)
+  source DataSource @relation(fields: [dataSourceId, sourceKey], references: [id, key], onDelete: Restrict)
+  @@unique([sourceKey, channel, scopeKey])
+}
+
+// Platform ownership is independent of cooldown; moving it never resets control.
+model CollectorSourceAssignment {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  dataSourceId String
+  sourceKey String
+  channel String
+  nodeId String
+  incarnationId String
+  generation Int
+  controlMode String @default("LEGACY_QUEUE")
+  state String @default("ACTIVE")
+  tokenHash String
+  leaseExpiresAt DateTime
+  publicationRevision Int @default(0)
+  configHash String?
+  lastStopReceiptId String?
+  source DataSource @relation(fields: [dataSourceId, sourceKey], references: [id, key], onDelete: Restrict)
+  node CollectorNode @relation(fields: [nodeId], references: [nodeId], onDelete: Restrict)
+  @@unique([sourceKey, channel, generation])
+  @@index([sourceKey, channel, state])
+}

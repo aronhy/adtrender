@@ -1,0 +1,28 @@
+{
+  "name": "@ad-research/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/collection.js",
+  "types": "./dist/collection.d.ts",
+  "exports": {
+    "./seed-native-query": {"types":"./dist/seed-native-query.d.ts","import":"./dist/seed-native-query.js"},
+    "./seed-native-plan": {"types":"./dist/seed-native-plan.d.ts","import":"./dist/seed-native-plan.js"},
+    "./seed-baseline": {"types":"./dist/seed-baseline.d.ts","import":"./dist/seed-baseline.js"},
+    ".": {
+      "types": "./dist/collection.d.ts",
+      "import": "./dist/collection.js"
+    },
+    "./seeds": {
+      "types": "./dist/seeds.d.ts",
+      "import": "./dist/seeds.js"
+    },
+    "./seed-dispatch": {
+      "types": "./dist/seed-dispatch.d.ts",
+      "import": "./dist/seed-dispatch.js"
+    }
+  },
+  "files": [
+    "dist"
+  ]
+}

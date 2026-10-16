@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly public advertiser candidate refresh for Snapchat
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1h
+Unit=snapchat-candidates.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=Meta public ecommerce advertising collector
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/meta-collector-runtime.env
+ExecStartPre=-/usr/bin/docker rm -f meta-collector
+ExecStart=/opt/meta-collector/run.sh
+ExecStop=/usr/bin/docker stop --time 240 meta-collector
+Restart=always
+RestartSec=60
+TimeoutStopSec=260
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

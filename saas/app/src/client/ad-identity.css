@@ -1,0 +1,11 @@
+.ad-brand-logo { flex-shrink: 0; overflow: hidden; }
+.ad-brand-logo > img { display: block; width: 100%; height: 100%; object-fit: contain; background: white; }
+.ad-platform-logo { display: block; width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+.ad-platform-logos { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; flex-shrink: 0; }
+.ad-platform-logos > img { display: block; width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+.ad-platform-logo[data-platform="snapchat"] { background: #fffc00; border-radius: 5px; padding: 2px; }
+.workspace-shell .library-card .ws-card-platform.ad-platform-logos { display: inline-flex; max-width: 72px; }
+.workspace-shell .library-card .ws-card-platform.ad-platform-logos > img { width: 20px; height: 20px; }
+@media (max-width: 640px) { .workspace-shell .library-card .ws-card-platform.ad-platform-logos > img { width: 18px; height: 18px; } }
+.workspace-shell .ws-ad-detail .ws-detail-platform.ad-platform-logos { color: var(--ink-muted); }
+.workspace-shell .ws-detail-creative-card > header .ws-detail-platform { margin-left: auto; }

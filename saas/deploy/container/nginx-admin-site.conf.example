@@ -1,0 +1,59 @@
+# Template only: load inside the existing Nginx http context after DNS/TLS review.
+# Serve the admin VITE_APP_SURFACE build here; its API origin stays adtrender.com.
+server {
+    listen 80;
+    server_name admin.adtrender.com;
+    access_log off;
+    error_log /var/log/nginx/adtrender-admin.error.log crit;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /www/wwwroot/acme;
+        try_files $uri =404;
+    }
+    location = / {
+        return 308 https://admin.adtrender.com/app/admin;
+    }
+    location / {
+        return 308 https://admin.adtrender.com$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name admin.adtrender.com;
+    ssl_certificate /etc/letsencrypt/live/adtrender-admin/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/adtrender-admin/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    root /www/wwwroot/adtrender-admin/current;
+    index 200.html;
+    access_log off;
+    error_log /var/log/nginx/adtrender-admin.error.log crit;
+    add_header Referrer-Policy no-referrer always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Cache-Control no-store always;
+
+    # Use a fixed origin even when the incoming Host or query is untrusted.
+    location = / {
+        return 302 https://admin.adtrender.com/app/admin;
+    }
+
+    # The admin host serves a client only. Use the shared customer-origin API
+    # and its original signed object URLs; never add a second proxy here.
+    location ~ ^/(auth|operations|billing|health|growth|api|ad-research-test-objects)(/|$) {
+        return 404;
+    }
+
+    location ^~ /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
+    }
+    location = /200.html {
+        try_files $uri =404;
+    }
+    location / {
+        try_files $uri /200.html;
+    }
+}

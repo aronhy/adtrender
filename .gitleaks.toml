@@ -1,0 +1,4 @@
+title = "AdTrender secret scanning"
+
+[extend]
+useDefault = true

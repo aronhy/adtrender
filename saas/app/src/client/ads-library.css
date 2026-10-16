@@ -1,0 +1,114 @@
+/* Approved ad workspace: dark navigation, compact filters and creative-first cards. */
+.workspace-shell.workspace-ads-shell { background: var(--n-025);
+}
+.workspace-ads-shell .sidebar { width: 218px; padding: 24px 14px 18px; background: var(--n-900); }
+.workspace-ads-shell .workspace-sidebar-brand { margin: 0 6px 12px; }
+.workspace-ads-shell .sidebar .at-wordmark { font-size: 22px; letter-spacing: -.045em; }
+.workspace-ads-shell .sidebar nav a.active { color: var(--o-300); background: color-mix(in srgb, var(--accent) 12.55%, transparent); box-shadow: inset 2px 0 var(--accent); }
+.workspace-ads-shell .workspace-main { margin-left: 218px; padding: 0 28px 40px; }
+.workspace-ads-shell .workspace-topline { min-height: 50px; margin-bottom: 14px; border-color: var(--n-100); }
+.workspace-ads-shell .workspace-context { font-size: 12px; }
+.workspace-ads-shell .workspace-breadcrumb { color: var(--n-500); }
+.workspace-ads-shell .workspace-language { color: var(--n-700); }
+.workspace-ads-shell .status-source-active { color: var(--status-active); background: var(--status-active-soft); border-color: var(--status-active-soft); }
+.workspace-ads-shell .status-source-inactive { color: var(--status-inactive); background: var(--n-100); border-color: var(--line); }
+.workspace-ads-shell .status-source-unknown { color: var(--status-unknown); background: var(--status-unknown-soft); border-color: var(--warning-line); }
+.workspace-ads-shell .workspace-switch { padding: 12px 6px; }
+.workspace-ads-shell .sidebar nav { margin-top: 0; }
+.workspace-ads-shell .sidebar-collapse { position: absolute; right: 15px; top: 95px; margin: 0; min-height: 28px; width: 28px; padding: 5px; }
+.workspace-ads-shell .sidebar-collapse > span, .workspace-ads-shell .workspace-switch > .status { display: none; }
+.workspace-ads-shell .workspace-switch select { min-height: 38px; }
+.workspace-ads-shell.workspace-collapsed .sidebar-collapse { position: static; width: 100%; min-height: 36px; margin-top: 8px; }
+.workspace-ads-shell .account-line small { max-width: 96px; }
+.workspace-ads-shell .workspace-main > .ws-ads-page { max-width: 1440px; }
+.workspace-shell :is(.ws-ads-page, .ws-ad-detail) { --content-line: var(--n-100); --content-muted: var(--n-500); --content-ink: var(--n-800); }
+.workspace-shell .ws-ads-page .ws-search-form { padding: 0; margin: 0 0 16px; background: transparent; border: 0; border-radius: 0; }
+.workspace-shell .ws-library-heading { display: flex; align-items: center; gap: 32px; margin-bottom: 14px; }
+.workspace-shell .ws-library-heading header { min-width: 220px; flex: 0 0 24%; }
+.workspace-shell .ws-library-heading h1 { margin: 0; font-size: 26px; font-weight: 680; line-height: 1.3; letter-spacing: -.035em; }
+.workspace-shell .ws-library-heading p { margin: 7px 0 0; font-size: 13px; color: var(--content-muted); line-height: 1.6; }
+.workspace-shell .ws-search-form .search-primary { flex: 1; min-width: 0; gap: 10px; padding: 0 0 0 14px; border: 1px solid var(--n-200); border-radius: 7px; }
+.workspace-shell .ws-search-form .search-primary input { min-height: 42px; padding: 9px 0; font-size: 14px; }
+.workspace-shell .ws-search-form .search-primary button { margin: -1px; min-height: 44px; padding: 8px 22px; border-radius: 7px; font-size: 13px; }
+.workspace-shell .ws-common-filters { grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(118px, .85fr); gap: 10px; margin-top: 0; align-items: end; }
+.workspace-shell .ws-common-filters .field { gap: 5px; }
+.workspace-shell .ws-common-filters .field > span { font-size: 11px; font-weight: 450; color: var(--content-muted); }
+.workspace-shell .ws-common-filters > .field > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.workspace-shell .ws-common-filters select { font-size: 12px; min-height: 39px; padding: 8px 24px 8px 10px; border: 1px solid var(--n-100); }
+.workspace-shell .ws-date-filter > summary { min-height: 39px; padding: 8px 10px; border-color: var(--n-100); font-size: 12px; }
+.workspace-shell .ws-common-filters > .ws-more-filters { min-height: 39px; font-size: 12px; padding: 8px 10px; border-color: var(--n-100); display: flex; justify-content: center; align-items: center; gap: 6px; }
+.workspace-shell .ws-advanced-filters { grid-template-columns: 1.4fr 1fr 1fr; gap: 14px; margin-top: 14px; padding-top: 14px; }
+.workspace-shell .ws-advanced-filters input { min-height: 40px; font-size: 13px; }
+.workspace-shell .ws-applied-filters { margin-top: 10px; padding-top: 0; }
+.workspace-shell .ws-ads-page .results-heading { margin: 0 0 12px; gap: 12px; display: flex; justify-content: space-between; align-items: center; }
+.workspace-shell .ws-ads-page .results-heading h2 { font-size: 16px; font-weight: 650; margin: 0; color: var(--content-ink); }
+.workspace-shell .ws-ads-page .results-heading h2 span { color: var(--content-muted); font-size: 12px; font-weight: 400; }
+.workspace-shell .ws-results-tools { display: flex; align-items: center; gap: 14px; }
+.workspace-shell .ws-recent-sort { color: var(--n-600); font-size: 12px; }
+.workspace-shell .ws-results-tools .text-button { min-height: 36px; font-size: 12px; color: var(--n-500); }
+.workspace-shell .ws-ads-page .ws-source-notes { position: relative; margin: 0; font-size: 11px; border: 0; }
+.workspace-shell .ws-source-notes > summary { min-height: 28px; padding: 0; font-size: 11px; }
+.workspace-shell .ws-ads-page .ws-source-notes > div { position: absolute; right: 0; top: 100%; z-index: 30; width: min(450px, calc(100vw - 40px)); padding: 12px 16px; margin-top: 8px; background: var(--n-000); border: 1px solid var(--content-line); border-radius: 7px; box-shadow: 0 8px 28px color-mix(in srgb, var(--n-900) 7.84%, transparent); }
+.workspace-shell .ws-source-notes .source-health { margin-bottom: 10px; }
+.workspace-shell .ws-ads-page .ad-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.workspace-shell .ws-ads-page .ad-card { padding: 11px; border: 1px solid var(--content-line); border-radius: 9px; box-shadow: none; min-width: 0; }
+.workspace-shell .ws-ads-page .ad-card:hover { border-color: var(--n-200); box-shadow: 0 3px 10px color-mix(in srgb, var(--n-900) 2.35%, transparent); }
+.workspace-shell .ws-card-header { display: flex; align-items: center; gap: 9px; min-height: 31px; }
+.workspace-shell .ws-ad-avatar { display: inline-flex; align-items: center; justify-content: center; width: 31px; height: 31px; flex: 0 0 31px; border-radius: 50%; background: var(--n-050); color: var(--n-600); font-size: 16px; font-weight: 600; }
+.workspace-shell .ws-ads-page .ad-card-heading { min-width: 0; flex: 1; }
+.workspace-shell .ws-ads-page .ad-card-heading > a { min-width: 0; flex: auto; }
+.workspace-shell .ws-ads-page .ad-card-heading h3 { margin: 0; font-size: 14px; font-weight: 650; line-height: 1.35; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.workspace-shell .ws-card-platform { max-width: 38%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--n-500); }
+.workspace-shell .ws-card-header .command-action { flex: 0 0 auto; }
+.workspace-shell .ws-card-save.text-button { display: flex; align-items: center; justify-content: center; min-height: 32px; min-width: 27px; padding: 0; color: var(--n-600); }
+.workspace-shell .ws-card-facts { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--n-050); margin-top: 8px; padding: 8px 0; font-size: 10px; min-height: 32px; }
+.workspace-shell .ws-source-status { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.workspace-shell .ws-source-status .status { background: transparent; border: 0; border-radius: 0; padding: 0; font-size: 11px; line-height: 1.5; }
+.workspace-shell .ws-source-active .status { color: var(--status-active); }
+.workspace-shell .ws-source-inactive .status { color: var(--status-inactive); }
+.workspace-shell .ws-source-unknown .status { color: var(--status-unknown); }
+.workspace-shell .ws-card-date { min-width: 0; border-left: 1px solid var(--n-100); padding-left: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-muted); }
+.workspace-shell .ws-ads-page .ad-card-media { aspect-ratio: 1.85; border: 0; border-radius: 5px; background: var(--n-050); }
+.workspace-shell .ws-ads-page .ad-card-body { padding: 0 1px; }
+.workspace-shell .ws-ads-page .ad-copy.excerpt { margin: 8px 0 4px; min-height: 19px; height: 19px; color: var(--n-700); font-size: 13px; line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.workspace-shell .ws-card-destination { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.workspace-shell .ws-card-destination > span:first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; color: var(--ink-muted); }
+.workspace-shell .ws-ads-page .ws-card-cta { margin: 0; font-size: 11px; background: var(--n-050); color: var(--n-700); padding: 5px 10px; border-radius: 5px; flex: 0 1 auto; max-width: 55%; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: block; }
+.workspace-shell .ws-ads-page .ad-card-actions { margin-top: 9px; padding: 0; border: 0; }
+.workspace-shell .ws-ads-page .ad-card-actions a { width: 100%; min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--n-100); border-radius: 5px; color: var(--n-700); font-size: 12px; font-weight: 500; }
+.workspace-shell .ws-ads-page .ad-card-actions a:hover { background: var(--n-025); border-color: var(--n-200); color: var(--accent-ink); }
+.workspace-shell .ws-ads-page .media-count { border: 0; background: color-mix(in srgb, var(--n-800) 72.16%, transparent); color: var(--ink-on-inverse); bottom: 8px; right: 8px; font-size: 10px; padding: 3px 6px; }
+.workspace-shell .ws-ads-page .video-preview > span { color: var(--ink-on-inverse); background: color-mix(in srgb, var(--n-900) 25.10%, transparent); font-size: 0; }
+.workspace-shell .ws-ads-page .video-preview > span svg { width: 42px; height: 42px; padding: 10px; border: 1px solid color-mix(in srgb, var(--n-000) 83.92%, transparent); border-radius: 50%; fill: var(--ink-on-inverse); }
+.workspace-shell .ws-ads-page .pagination { padding-top: 18px; }
+.workspace-shell .ws-ads-page .pagination .button { min-height: 38px; font-size: 12px; }
+.workspace-shell .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 1200px) {
+  .workspace-shell .ws-library-heading { gap: 22px; }
+  .workspace-shell .ws-common-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .workspace-shell .ws-ads-page .ad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 960px) {
+  .workspace-ads-shell .sidebar { width: min(310px, calc(100vw - 44px)); }
+  .workspace-ads-shell .workspace-main { margin-left: 0; padding: 0 22px 36px; }
+  .workspace-ads-shell .workspace-topline { margin-bottom: 18px; }
+}
+@media (max-width: 640px) {
+  .workspace-ads-shell .workspace-main { padding: 0 16px 30px; }
+  .workspace-shell .ws-library-heading { display: block; margin-bottom: 12px; }
+  .workspace-shell .ws-library-heading header { margin-bottom: 16px; }
+  .workspace-shell .ws-library-heading h1 { font-size: 23px; }
+  .workspace-shell .ws-search-form .search-primary input { font-size: 16px; }
+  .workspace-shell .ws-search-form .search-primary > button { padding: 9px 13px; }
+  .workspace-shell .ws-common-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-shell .ws-common-filters select { font-size: 16px; min-height: 44px; }
+  .workspace-shell .ws-date-filter > summary, .workspace-shell .ws-common-filters > .ws-more-filters { min-height: 44px; }
+  .workspace-shell .ws-date-panel { max-width: calc(100vw - 50px); width: 280px; }
+  .workspace-shell .ws-advanced-filters { grid-template-columns: 1fr; }
+  .workspace-shell .ws-advanced-filters input { font-size: 16px; }
+  .workspace-shell .ws-ads-page .ad-grid { grid-template-columns: 1fr; gap: 16px; }
+  .workspace-shell .ws-ads-page .results-heading { flex-wrap: wrap; }
+  .workspace-shell .ws-results-tools { gap: 10px; }
+  .workspace-shell .ws-ads-page .ad-copy.excerpt { font-size: 13px; height: 38px; min-height: 38px; -webkit-line-clamp: 2; }
+  .workspace-shell .ws-card-facts .status, .workspace-shell .ws-card-date { font-size: 11px; }
+}

@@ -1,0 +1,93 @@
+# AdTrender domain confirmed and registered on 2026-10-07.
+# Load these server blocks inside the existing Nginx http context.
+server {
+    listen 80;
+    server_name adtrender.com;
+    access_log off;
+    error_log /var/log/nginx/ad-research-test.error.log crit;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /www/wwwroot/acme;
+        try_files $uri =404;
+    }
+    # Fixed trusted target; discard every query, including tokens and return URLs.
+    location = /app/admin {
+        return 302 https://admin.adtrender.com/app/admin;
+    }
+    location ^~ /app/admin/ {
+        return 302 https://admin.adtrender.com/app/admin;
+    }
+    location / {
+        return 308 https://adtrender.com$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name adtrender.com;
+    ssl_certificate /etc/letsencrypt/live/ad-research-test/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ad-research-test/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    root /www/wwwroot/adtrender/current;
+    index 200.html;
+    access_log off;
+    # Avoid request URLs (including signed query strings) in normal error logs.
+    error_log /var/log/nginx/ad-research-test.error.log crit;
+    add_header Referrer-Policy no-referrer always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Cache-Control no-store always;
+
+    # Old customer-site admin links move to the separate admin client.
+    # Do not append $args or $request_uri to this trusted target.
+    location = /app/admin {
+        return 302 https://admin.adtrender.com/app/admin;
+    }
+    location ^~ /app/admin/ {
+        return 302 https://admin.adtrender.com/app/admin;
+    }
+
+    # Wasp auth/operations, billing, health and consent-gated first-party growth.
+    location ~ ^/(auth|operations|billing|health|growth)(/|$) {
+        proxy_pass http://127.0.0.1:13001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_cache off;
+        proxy_buffering off;
+        proxy_read_timeout 60s;
+        client_max_body_size 2m;
+    }
+
+    # Only this private bucket's path-style S3 API is routed to Garage.
+    # A proxy_pass without a URI preserves the original encoded URI and query.
+    location ~ ^/ad-research-test-objects(/|$) {
+        proxy_pass http://127.0.0.1:13900;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_cache off;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+        client_max_body_size 272m;
+    }
+
+    location ^~ /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
+    }
+    location = /200.html {
+        try_files $uri =404;
+    }
+    location / {
+        try_files $uri /200.html;
+    }
+}

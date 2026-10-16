@@ -1,0 +1,18 @@
+**/node_modules
+**/.git
+**/.env
+**/.env.*
+**/*.env
+**/.npmrc
+**/.pgpass
+**/*.dump
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa
+**/id_ed25519
+# The release includes the API build entry and its production type helper.
+scripts/**
+!scripts/build-api.mjs
+!scripts/wasp-build-scope.mjs

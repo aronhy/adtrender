@@ -1,0 +1,123 @@
+name: ds-meta-saas-test
+
+x-app: &app
+  image: ad-research-saas-test:${AD_RESEARCH_RELEASE_ID:?Set AD_RESEARCH_RELEASE_ID}
+  build:
+    context: ../..
+    dockerfile: deploy/container/Dockerfile
+  user: "1000:1000"
+  init: true
+  restart: unless-stopped
+  env_file:
+    - path: ${AD_RESEARCH_APP_ENV_FILE:?Set an absolute external app env path}
+      required: true
+      format: raw
+  environment:
+    NODE_ENV: production
+    PORT: "3001"
+    META_BROWSER_CHANNEL: chromium
+    PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+  read_only: true
+  tmpfs:
+    - /tmp:rw,nosuid,nodev,size=512m,mode=1777
+    - /home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=0700
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  networks: [data, outbound]
+  depends_on:
+    database:
+      condition: service_healthy
+    garage:
+      condition: service_healthy
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  database:
+    image: postgres:15.17-bookworm
+    restart: unless-stopped
+    env_file:
+      - path: ${AD_RESEARCH_DB_ENV_FILE:?Set an absolute external database env path}
+        required: true
+        format: raw
+    command: [postgres, -c, timezone=UTC, -c, log_timezone=UTC]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    stop_grace_period: 60s
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  garage:
+    image: dxflrs/garage:v2.4.1
+    restart: unless-stopped
+    command: [/garage, server, --single-node, --default-bucket]
+    env_file:
+      - path: ${AD_RESEARCH_GARAGE_ENV_FILE:?Set an absolute external Garage env path}
+        required: true
+        format: raw
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage.toml
+      RUST_LOG: garage=info
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - garage_meta:/data/meta
+      - garage_objects:/data/objects
+    ports:
+      - "127.0.0.1:13900:3900"
+    networks: [data, ingress]
+    healthcheck:
+      test: [CMD, /garage, status]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    stop_grace_period: 60s
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  api:
+    <<: *app
+    ports:
+      - "127.0.0.1:13001:3001"
+    healthcheck:
+      test: [CMD, node, -e, 'fetch("http://127.0.0.1:3001/health").then(async r=>{const s=await r.json();process.exit(r.ok&&s.database==="ok"?0:1)}).catch(()=>process.exit(1))']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    stop_grace_period: 60s
+
+  worker:
+    <<: *app
+    command: [node, --enable-source-maps, dist-worker/index.mjs]
+    shm_size: 1gb
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./seccomp_profile.json
+    stop_grace_period: 90s
+
+networks:
+  data:
+    internal: true
+  ingress:
+    driver: bridge
+  outbound:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  garage_meta:
+  garage_objects:

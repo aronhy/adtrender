@@ -1,0 +1,25 @@
+.admin-shell { min-height: 100dvh; background: var(--n-050); }
+.admin-shell-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding: 8px 32px; border-bottom: 1px solid var(--n-200); background: var(--n-000); }
+.admin-shell-brand, .admin-shell-controls { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.admin-shell-brand > span { color: var(--n-500); font-size: 13px; white-space: nowrap; }
+.admin-shell-identity { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--n-600); font-size: 13px; }
+.admin-shell .admin-shell-signout { width: 44px; min-width: 44px; height: 44px; flex-shrink: 0; }
+.admin-shell-main { min-width: 0; padding: 24px 32px 32px; }
+.admin-shell-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 320px; padding: 32px 16px; text-align: center; color: var(--n-600); }
+.admin-shell-state h1 { color: var(--n-900); font-size: 24px; margin: 0; }
+.admin-shell-state p { margin: 0; max-width: 480px; }
+@media (max-width: 1279px) {
+  .admin-shell-header { padding-inline: 24px; }
+  .admin-shell-main { padding-inline: 24px; }
+  .admin-shell-identity { max-width: 160px; }
+}
+@media (max-width: 767px) {
+  .admin-shell-header { gap: 8px; padding: 6px 16px; min-height: 56px; }
+  .admin-shell-brand, .admin-shell-controls { gap: 8px; }
+  .admin-shell-brand > span, .admin-shell-identity { display: none; }
+  .admin-shell-brand .at-brand { gap: 6px; }
+  .admin-shell-brand .at-wordmark { font-size: 19px; }
+  .admin-shell-brand .at-mark { width: 28px; height: 28px; }
+  .admin-shell-main { padding: 16px; }
+  .admin-shell-state { min-height: 280px; }
+}

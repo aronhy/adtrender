@@ -1,0 +1,36 @@
+[Unit]
+Description=AdTrender private US SSH SOCKS egress
+Wants=network-online.target
+Requires=docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=/etc/adtrender-egress/us01/runtime.env
+LoadCredential=ssh-password:/etc/adtrender-egress/us01/password
+ExecStartPre=-/usr/bin/docker rm -f adtrender-egress-us01
+ExecStart=/opt/adtrender-egress/us01/run.sh
+ExecStop=/usr/bin/docker stop --time 10 adtrender-egress-us01
+TimeoutStopSec=20
+Restart=always
+RestartSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+MemoryMax=128M
+CPUQuota=10%
+TasksMax=24
+StandardInput=null
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=Pinterest public advertising full coverage collector
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/pinterest-collector-runtime.env
+ExecStartPre=-/usr/bin/docker rm -f pinterest-collector
+ExecStart=/opt/pinterest-collector/run.sh
+ExecStop=/usr/bin/docker stop --time 90 pinterest-collector
+Restart=always
+RestartSec=60
+TimeoutStopSec=110
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

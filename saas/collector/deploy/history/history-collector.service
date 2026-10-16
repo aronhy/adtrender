@@ -1,0 +1,20 @@
+[Unit]
+Description=Known advertising identities daily history recheck
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/history-collector-runtime.env
+ExecStartPre=-/usr/bin/docker rm -f history-collector
+ExecStart=/opt/history-collector/run.sh
+ExecStop=/usr/bin/docker stop --time 120 history-collector
+Restart=always
+RestartSec=60
+TimeoutStopSec=140
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

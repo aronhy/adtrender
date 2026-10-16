@@ -1,0 +1,12 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+// This model only makes a raw-query-only Prisma client generatable.
+// The collector never queries it, and no migration/db-push runs for this schema.
+model CollectorRuntimeProbe {
+  id String @id
+}

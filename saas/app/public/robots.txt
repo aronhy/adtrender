@@ -1,0 +1,13 @@
+User-agent: *
+Disallow: /
+Allow: /$
+Allow: /pricing$
+Allow: /help$
+Allow: /terms$
+Allow: /privacy$
+Allow: /sitemap.xml$
+Allow: /assets/
+Allow: /favicon.svg$
+Allow: /adthrender-mark.svg$
+
+Sitemap: https://adtrender.com/sitemap.xml

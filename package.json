@@ -1,0 +1,19 @@
+{
+  "name": "adtrender",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --config saas/vitest.config.ts",
+    "verify": "./saas/scripts/verify.sh"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "26.2.0",
+    "esbuild": "0.28.2",
+    "express": "5.2.1",
+    "jsdom": "29.0.0",
+    "playwright": "1.62.1",
+    "vitest": "4.1.10"
+  }
+}

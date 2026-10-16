@@ -1,0 +1,15 @@
+import {expect,it,vi} from 'vitest';import {mkdtemp,rm,readFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
+async function api(){const path='./control-'+'handoff';return import(path).catch(()=>({})) as Promise<any>;}
+it('changes only the requested control mode after a fresh central handoff proof',async()=>{
+ const {applyControlModeHandoff}=await api();expect(applyControlModeHandoff).toBeTypeOf('function');const root=await mkdtemp(join(tmpdir(),'control-handoff-'));try{
+ const state:any={controlMode:'LEGACY_QUEUE',jobs:[{id:'native',seen:['old-ad'],cursor:{page:4},failures:2,dueAt:33}],pauseUntil:999,manualPause:true,nativeCheckpoints:{query:{sequence:2,sha256:'a'.repeat(64)}},updatedAt:'2026-10-10T00:00:00Z',seedConfig:{revision:7,contentHash:'b'.repeat(64),mappings:[{queryId:'query',nativeJobId:'native'}]}},before=structuredClone(state),recover=vi.fn(async()=>{});let persisted:any,input:any;
+ const client={controlHandoff:async(body:any)=>{input=body;return {schemaVersion:1,nodeId:'node',incarnationId:'55555555-5555-4555-8555-555555555555',sourceKey:body.sourceKey,fromMode:body.fromMode,toMode:body.toMode,assignmentGeneration:3,publicationRevision:body.publicationRevision,configHash:body.configHash,drainedReceiptId:'drained',issuedAt:new Date().toISOString(),handoffId:'handoff'};}};
+ const next=await applyControlModeHandoff(state,{root,platform:'meta',nodeId:'node',incarnationId:'55555555-5555-4555-8555-555555555555',toMode:'CONFIG_QUEUE',client,recover,persist:async(s:any)=>{persisted=s;}});expect(recover).toHaveBeenCalledOnce();expect(input).toMatchObject({sourceKey:'meta_ad_library',fromMode:'LEGACY_QUEUE',toMode:'CONFIG_QUEUE',publicationRevision:7,configHash:'b'.repeat(64)});expect(next).toEqual({...before,controlMode:'CONFIG_QUEUE'});expect(persisted).toEqual(next);expect(state).toEqual(before);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+it('preserves the old mode when pending remains or the central proof is stale',async()=>{
+ const {applyControlModeHandoff}=await api();expect(applyControlModeHandoff).toBeTypeOf('function');const root=await mkdtemp(join(tmpdir(),'control-handoff-blocked-'));try{
+ const state:any={controlMode:'CONFIG_QUEUE',jobs:[],pending:{jobId:'old',file:'unchanged'},seedConfig:{revision:1,contentHash:'b'.repeat(64)}},persist=vi.fn(),client={controlHandoff:vi.fn(async()=>({schemaVersion:1,fromMode:'CONFIG_QUEUE',toMode:'TASK_CLAIM',nodeId:'other'}))},options={root,platform:'meta',nodeId:'node',incarnationId:'55555555-5555-4555-8555-555555555555',toMode:'TASK_CLAIM',client,recover:async()=>{},persist};
+ await expect(applyControlModeHandoff(state,options)).rejects.toThrow('COLLECTOR_HANDOFF_PENDING');expect(client.controlHandoff).not.toHaveBeenCalled();delete state.pending;await expect(applyControlModeHandoff(state,options)).rejects.toThrow('COLLECTOR_HANDOFF_PROOF_INVALID');expect(persist).not.toHaveBeenCalled();expect(state.controlMode).toBe('CONFIG_QUEUE');
+ }finally{await rm(root,{recursive:true,force:true});}
+});

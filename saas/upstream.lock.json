@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/wasp-lang/open-saas",
+  "tag": "wasp-v0.25-template",
+  "commit": "9ee052af84950433c76bffe999b317d24bc0205d",
+  "wasp": "0.25.0",
+  "node": "24.14.1",
+  "npm": "11.18.0",
+  "prisma": "5.19.1",
+  "license": "OPEN-SAAS-LICENSE",
+  "adapted": ["template/app/main.wasp.ts", "template/app/src/auth", "template/app/tsconfig*.json", "template/app/vite.config.ts"],
+  "excluded": ["demo-ai-app", "analytics", "mock data", "personal subscription", "Polar", "Lemon Squeezy"]
+}
