@@ -15,9 +15,10 @@ const require = createRequire(join(root, 'apps/web/package.json'));
 const { PrismaClient } = require('@prisma/client'), { tsImport } = require('tsx/esm/api');
 const digest = value => createHash('sha256').update(value).digest('hex');
 const baseUrl = process.env.SAAS_BACKUP_TEST_DATABASE_URL;
+if (process.env.CI && !baseUrl) throw new Error('SAAS_BACKUP_TEST_DATABASE_URL is required in CI');
 
 for (const hasObservation of [true, false]) test(`a public legacy import ${hasObservation ? 'with' : 'without'} observations preserves verified evidence through joint restore`, { skip: !baseUrl, timeout: 120000 }, async t => {
-  const module = path => tsImport(join(root, 'scripts/saas-migration', path), import.meta.url);
+  const module = path => tsImport(join(root, 'scripts/migration', path), import.meta.url);
   const { prepareSourceEvidenceManifest, archiveSourceEvidence } = await module('source-evidence.ts');
   const { createInventoryManifest } = await module('inventory.ts');
   const { buildPublicImportPlan, importPublicPlan } = await module('import-public.ts');
@@ -30,13 +31,13 @@ for (const hasObservation of [true, false]) test(`a public legacy import ${hasOb
   const sourceUrl = new URL(sourceClientUrl); sourceUrl.password = '';
   const targetClientUrl = new URL(base); targetClientUrl.pathname = '/' + targetName;
   const targetUrl = new URL(targetClientUrl); targetUrl.password = '';
-  const pgBin = process.env.PG_BIN ?? '/opt/homebrew/opt/postgresql@15/bin';
-  const pgEnv = { PATH: `${pgBin}:${process.env.PATH}`, PGHOST: base.hostname, PGPORT: base.port || '5432', PGUSER: decodeURIComponent(base.username), PGPASSWORD: decodeURIComponent(base.password), PGDATABASE: 'postgres', PGCONNECT_TIMEOUT: '5' };
+  const pgBin = process.env.PG_BIN;
+  const pgEnv = { PATH: pgBin ? `${pgBin}:${process.env.PATH}` : process.env.PATH, PGHOST: base.hostname, PGPORT: base.port || '5432', PGUSER: decodeURIComponent(base.username), PGPASSWORD: decodeURIComponent(base.password), PGDATABASE: 'postgres', PGCONNECT_TIMEOUT: '5' };
   const command = async (file, args, env) => {
     try { return (await exec(file, args, { env, timeout: 60000, maxBuffer: 4 * 1024 * 1024 })).stdout.trim(); }
     catch { throw new Error('LEGACY_JOINT_REHEARSAL_FAILED_' + file.split('/').at(-1)); }
   };
-  const sql = (text, database = 'postgres') => command(join(pgBin, 'psql'), ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', text], { ...pgEnv, PGDATABASE: database });
+  const sql = (text, database = 'postgres') => command(pgBin ? join(pgBin, 'psql') : 'psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', text], { ...pgEnv, PGDATABASE: database });
   const temporary = await realpath(await mkdtemp(join(tmpdir(), 'saas-legacy-joint-test-')));
   let sourceDb, restoredDb, provider, server;
   t.after(async () => {

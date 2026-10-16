@@ -10,6 +10,7 @@ import { after, before, describe, test } from 'node:test';
 const scripts = fileURLToPath(new URL('../scripts/', import.meta.url));
 const migrations = fileURLToPath(new URL('../apps/web/migrations/', import.meta.url));
 const databaseUrl = process.env.SAAS_BACKUP_TEST_DATABASE_URL;
+if (process.env.CI && !databaseUrl) throw new Error('SAAS_BACKUP_TEST_DATABASE_URL is required in CI');
 const hash = value => createHash('sha256').update(value).digest('hex');
 const quote = value => `'${value.replaceAll("'", "''")}'`;
 
@@ -55,6 +56,7 @@ describe('PostgreSQL snapshot object references', { skip: !databaseUrl }, () => 
     root = mkdtempSync(join(tmpdir(), 'saas-pg-backup-test-'));
     // Inherit no provider credentials or external service configuration.
     env = Object.fromEntries(['PATH', 'HOME', 'TMPDIR', 'PG_BIN'].filter(key => process.env[key]).map(key => [key, process.env[key]]));
+    if (env.PG_BIN) env.PATH = `${env.PG_BIN}:${env.PATH}`;
     Object.assign(env, { PGHOST: connection.hostname.replace(/^\[|\]$/g, ''), PGPORT: connection.port || '5432', PGUSER: decodeURIComponent(connection.username), PGPASSWORD: decodeURIComponent(connection.password), PGCONNECT_TIMEOUT: '10', npm_config_audit: 'false' });
     source = createDatabase();
     for (const name of readdirSync(migrations).sort()) {

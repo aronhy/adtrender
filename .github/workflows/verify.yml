@@ -33,6 +33,8 @@ jobs:
       DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
       SAAS_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
       SAAS_OWNED_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
+      SAAS_BACKUP_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
+      PG_BIN: /usr/lib/postgresql/15/bin
       REACT_APP_API_URL: https://api.example.invalid
       TIKTOK_TEST_CHANNEL: chromium
     steps:
@@ -56,7 +58,7 @@ jobs:
       - name: Install Chromium and PostgreSQL client
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client apparmor
+          sudo apt-get install -y postgresql-client-15 apparmor
           node apps/web/node_modules/playwright/cli.js install --with-deps chromium --no-shell
       - name: Allow sandboxed Chromium on the runner
         # Ubuntu 24.04 restricts user namespaces for downloaded browsers.

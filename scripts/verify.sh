@@ -21,6 +21,7 @@ bash -n "$repo_dir/scripts/backup.sh" "$repo_dir/scripts/restore-check.sh" "$rep
 node --check "$repo_dir/scripts/prepare-release.mjs"
 node --test "$repo_dir/deploy/prepare-release.test.mjs"
 node --test "$repo_dir/deploy/health-monitor.test.mjs"
+node --test "$repo_dir/deploy/object-backup.test.mjs" "$repo_dir/deploy/object-backup-boundaries.test.mjs"
 printf '%s\n' 'Checking the seed baseline without rewriting source files...'
 node --import "$repo_dir/apps/web/node_modules/tsx/dist/loader.mjs" "$repo_dir/scripts/generate-seed-baseline.ts" --check
 printf '%s\n' 'Building shared contracts before the tests consume their package exports...'
@@ -32,6 +33,8 @@ cd "$repo_dir/apps/web"
 cd "$repo_dir"
 # The API bundle tests read the generated .wasp/out, so they run after the build.
 node --test "$repo_dir/scripts/build-api.test.mjs" "$repo_dir/scripts/wasp-build-scope.test.mjs"
+printf '%s\n' 'Checking database backup and joint restore (explicit disposable database required)...'
+node --test "$repo_dir/deploy/backup.integration.test.mjs" "$repo_dir/deploy/joint-backup.integration.test.mjs" "$repo_dir/deploy/legacy-joint-backup.integration.test.mjs"
 printf '%s\n' 'Running SaaS tests, including migration inventory...'
 "$repo_dir/apps/web/node_modules/.bin/vitest" run --config "$repo_dir/vitest.config.ts"
 cd "$repo_dir/apps/web"
