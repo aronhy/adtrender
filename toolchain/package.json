@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@wasp.sh/wasp-cli": "0.25.0",
+    "node": "24.14.1",
+    "npm": "11.18.0"
+  }
+}
