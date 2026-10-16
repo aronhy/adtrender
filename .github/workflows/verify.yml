@@ -18,22 +18,12 @@ jobs:
     name: Tests and production builds
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    services:
-      postgres:
-        image: postgres:15.17-bookworm
-        env:
-          POSTGRES_DB: adtrender_test_ci
-          POSTGRES_USER: adtrender
-          POSTGRES_PASSWORD: ci-only-password
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U adtrender -d adtrender_test_ci"
-          --health-interval 5s --health-timeout 5s --health-retries 12
     env:
-      DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
-      SAAS_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
-      SAAS_OWNED_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
-      SAAS_BACKUP_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
+      DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:55438/adtrender_test_ci
+      SAAS_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:55438/adtrender_test_ci
+      SAAS_OWNED_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:55438/adtrender_test_ci
+      SAAS_BACKUP_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:55438/adtrender_test_ci
+      TEST_POSTGRES_CONTAINER: adtrender-test-postgres-${{ github.run_id }}-${{ github.run_attempt }}
       PG_BIN: /usr/lib/postgresql/15/bin
       REACT_APP_API_URL: https://api.example.invalid
       TIKTOK_TEST_CHANNEL: chromium
@@ -85,6 +75,22 @@ jobs:
           }
           EOF
           sudo apparmor_parser -r /etc/apparmor.d/adtrender-ci-chromium
+      - name: Start isolated loopback PostgreSQL
+        # The legacy import guard checks inet_server_addr() is loopback.
+        # Linux host networking preserves this; bridge port forwarding does not.
+        env:
+          POSTGRES_DB: adtrender_test_ci
+          POSTGRES_USER: adtrender
+          POSTGRES_PASSWORD: ci-only-password
+        run: |
+          docker run --detach --name "$TEST_POSTGRES_CONTAINER" --network host \
+            --env POSTGRES_DB --env POSTGRES_USER --env POSTGRES_PASSWORD \
+            postgres:15.17-bookworm postgres -c listen_addresses=127.0.0.1 -c port=55438 -c timezone=UTC -c log_timezone=UTC
+          for attempt in $(seq 1 60); do
+            if "$PG_BIN/pg_isready" -h 127.0.0.1 -p 55438 -U adtrender -d adtrender_test_ci; then exit 0; fi
+            sleep 1
+          done
+          exit 1
       - name: Bootstrap Wasp and migrate the isolated database
         run: |
           ./scripts/bootstrap-wasp.sh
@@ -101,6 +107,12 @@ jobs:
           node --test deploy/selfhost/config.test.mjs
       - name: Rehearse PostgreSQL and real Garage joint restore
         run: node deploy/backup/run-garage-rehearsal.mjs
+      - name: Remove isolated PostgreSQL
+        if: always()
+        run: |
+          if docker container inspect "$TEST_POSTGRES_CONTAINER" > /dev/null 2>&1; then
+            docker rm --force --volumes "$TEST_POSTGRES_CONTAINER"
+          fi
 
   selfhost:
     name: Self-host deployment
