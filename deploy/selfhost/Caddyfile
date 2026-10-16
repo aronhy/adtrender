@@ -5,8 +5,7 @@
 	{$CADDY_GLOBAL_OPTIONS}
 }
 
-{$APP_HOST} {
-	root * /srv/public
+(static_site) {
 	encode zstd gzip
 	header {
 		Referrer-Policy no-referrer
@@ -24,6 +23,16 @@
 			index index.html 200.html
 		}
 	}
+}
+
+{$APP_HOST} {
+	root * /srv/public
+	import static_site
+}
+
+{$ADMIN_HOST} {
+	root * /srv/admin
+	import static_site
 }
 
 {$API_HOST} {

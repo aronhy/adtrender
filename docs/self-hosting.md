@@ -72,7 +72,7 @@ AdTrender 线上已设置 `GOOGLE_AUTH_ENABLED=true`、`REGISTRATION_MODE=public
 
 | 服务 | 作用 |
 | --- | --- |
-| `caddy` | 静态网站和统一 HTTPS 入口，自动申请证书；分别转发 `APP_HOST`、`API_HOST`、`S3_HOST` |
+| `caddy` | 静态网站和统一 HTTPS 入口，自动申请证书；分别转发 `APP_HOST`、`ADMIN_HOST`、`API_HOST`、`S3_HOST` |
 | `api` | Wasp API 服务 |
 | `worker` | 独立后台进程（采集调度、邮件、分析），内置 Chromium |
 | `migrate` | 每次 `up` 时执行一次 `prisma migrate deploy`，成功后才启动 `api` 和 `worker` |
@@ -82,12 +82,12 @@ AdTrender 线上已设置 `GOOGLE_AUTH_ENABLED=true`、`REGISTRATION_MODE=public
 
 ```bash
 ./scripts/selfhost-init.sh research.example.com you@example.com   # 生成 .env 和随机密钥
-# 填好 .env 里的 SMTP_* 和 EMAIL_FROM；把三个域名都解析到这台机器，开放 80/443
+# 填好 .env 里的 SMTP_* 和 EMAIL_FROM；把四个域名都解析到这台机器，开放 80/443
 docker compose up -d --build
 docker compose ps
 ```
 
-生产模式要求三个地址都是 HTTPS，所以浏览器和服务端都通过 Caddy 访问它们；`api` 和 `worker` 经 Docker 网络别名把这几个域名解析到 Caddy，对象存储签名链接在服务端和浏览器里是同一个地址。前端在构建时写入 `API_HOST`，修改域名后需要重新 `docker compose up -d --build`。
+生产模式要求四个地址都是 HTTPS，所以浏览器和服务端都通过 Caddy 访问它们；`api` 和 `worker` 经 Docker 网络别名把这几个域名解析到 Caddy，对象存储签名链接在服务端和浏览器里是同一个地址。前端在构建时写入 `API_HOST`，修改域名后需要重新 `docker compose up -d --build`。
 
 本机试用时用 `localhost` 作为域名，脚本会设置 `CADDY_GLOBAL_OPTIONS=local_certs`（Caddy 自签 CA，浏览器会提示证书不受信任）并把邮件发到 Mailpit：
 
@@ -95,6 +95,14 @@ docker compose ps
 ./scripts/selfhost-init.sh localhost you@example.com
 docker compose --profile mailpit up -d --build
 # 打开 https://localhost 注册；验证邮件在 http://127.0.0.1:8025
+```
+
+管理后台位于 `https://admin.你的域名/app/admin`（本机为 `https://admin.localhost/app/admin`）。客户站点和管理端分别构建；修改 `APP_HOST`、`ADMIN_HOST` 或 `API_HOST` 后需要重新构建镜像。已有 `.env` 升级时先添加 `ADMIN_HOST=admin.你的域名`，并配置该域名的 DNS。
+
+初始化脚本中的邮箱仅加入注册 allowlist，不会自动获得管理员权限。先注册并完成邮箱验证，再由实例运维人员显式授权：
+
+```bash
+docker compose exec api node --import tsx src/team/admin-cli.ts grant-admin --email you@example.com
 ```
 
 默认 `REGISTRATION_MODE=invite`，只有 `REGISTRATION_ALLOWLIST` 里的邮箱能注册。升级时 `git pull` 后再执行 `docker compose up -d --build`，迁移会在新版本启动前执行；升级前先按下文备份数据库和对象存储。数据在 `postgres_data`、`garage_meta`、`garage_objects` 卷中，`docker compose down -v` 会删除它们。
@@ -112,7 +120,7 @@ docker compose --profile mailpit up -d --build
 REACT_APP_API_URL=https://api.example.invalid ./scripts/verify.sh
 ```
 
-脚本使用项目 Node / npm，显式关闭 npm audit，检查操作脚本和发布准备测试，运行 SaaS Vitest 配置，再执行 Wasp 生产生成、API server bundle、Vite 静态网页和独立 worker build。运行前必须显式设置 `REACT_APP_API_URL` 为 HTTPS origin；仅本地核验可用 `https://api.example.invalid`，该占位产物不可发布。数据库集成测试需要其指定的本机测试库环境变量；测试输出如有 skipped，必须原样记录，不能把跳过当通过。备份 / 恢复演练单独执行，不由普通验证命令自动建库。
+脚本使用项目 Node / npm，显式关闭 npm audit，检查操作脚本、发布准备和对象备份测试，执行 Wasp 生产生成，再运行 SaaS Vitest 和数据库备份恢复回归，最后构建 API server bundle、Vite 静态网页和独立 worker。运行前必须显式设置 `REACT_APP_API_URL` 为 HTTPS origin；仅本地核验可用 `https://api.example.invalid`，该占位产物不可发布。数据库集成测试需要其指定的本机测试库环境变量；测试输出如有 skipped，必须原样记录，不能把跳过当通过。19 项对象备份测试始终运行；12 项 PostgreSQL 备份与联合恢复回归仅在显式设置 `SAAS_BACKUP_TEST_DATABASE_URL` 时创建、清理随机命名的隔离演练库，不修改该 URL 指向的原测试库。缺少该变量时本机跳过、CI 报错；账号需具备建库权限。客户端从 `PG_BIN` 或 `PATH` 获取。真实 Garage 联合恢复需另行验证，不能由模拟 S3 的通过结果推断。
 
 ## 备份、恢复与重复核验
 
@@ -146,3 +154,13 @@ Linux systemd / Caddy 模板、Wasp 产物整理、相邻 contracts 包安装、
 发布前固定 Git commit / 构建产物，检查迁移、配置与备份，在独立环境完成健康检查后切换。应用回退使用上一份已验证产物；数据库迁移不得盲目执行 down migration，先核实兼容性，必要时恢复到新库再切换连接。正式平台的进程、健康检查地址与回退演练尚未验证。
 
 旧系统应按 旧数据盘点及停启手册 先对账、后停调度、再切入口。旧生产入口与 Mac 定时任务本轮未修改；不能把名称带 `review` 的旧 launchd 当成无写入测试环境。盘点 manifest 并非数据库导入凭证；来源或归属不明记录必须隔离，私有 ERP / Sales 数据不得混入公共广告库。
+
+## 自托管配置检查
+
+`node --test deploy/selfhost/config.test.mjs` 使用隔离目录生成配置，核对公开域名和 localhost 的前后台地址、构建参数和反向代理配置，不启动 Docker 容器。需要 Docker Compose CLI；CI 中缺少 CLI 会直接失败。
+
+GitHub Actions 的 `Verify` 运行隔离 PostgreSQL 和 Chromium 测试及生产构建。`Self-host deployment` 从空数据卷启动完整 Compose 服务，校验 Caddy 的双域名 HTTPS、迁移和 worker 就绪状态，再通过浏览器完成注册、Mailpit 收信、邮箱验证及前后台登录，核对管理员显式授权和普通用户拒绝访问。存储检查使用应用的真实适配器连接 Garage，验证私有文件上传、签名下载、跨组织拒绝访问和删除。
+
+验收仅运行于 `adtrender-ci` 隔离项目，使用合成账号；失败时输出服务状态与已屏蔽生成密钥的容器日志，结束后删除该项目资源。工作流不发布镜像或部署服务。外部 SMTP 服务、支付和来源采集仍需单独验收；备份恢复演练仍单独执行。
+
+确定的 SMTP 5xx 拒收会保留短期加密载荷，允许管理员修复配置后重试；最多尝试三次，成功、过期或达到上限时清理。投递结果为 `UNKNOWN` 的邮件保持禁止重试，避免重复投递。
