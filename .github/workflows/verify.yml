@@ -1,0 +1,92 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'fix/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Tests and production builds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15.17-bookworm
+        env:
+          POSTGRES_DB: adtrender_test_ci
+          POSTGRES_USER: adtrender
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U adtrender -d adtrender_test_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
+      SAAS_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
+      SAAS_OWNED_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:5432/adtrender_test_ci
+      REACT_APP_API_URL: https://api.example.invalid
+      TIKTOK_TEST_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.14.1
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            toolchain/package-lock.json
+            apps/web/package-lock.json
+      - name: Install locked dependencies
+        run: |
+          npm ci --prefix toolchain --no-audit
+          echo "$GITHUB_WORKSPACE/toolchain/node_modules/.bin" >> "$GITHUB_PATH"
+          ./toolchain/node_modules/.bin/npm ci --no-audit
+          ./toolchain/node_modules/.bin/npm ci --prefix apps/web --no-audit
+      - name: Install Chromium and PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          node apps/web/node_modules/playwright/cli.js install --with-deps chromium --no-shell
+      - name: Bootstrap Wasp and migrate the isolated database
+        run: |
+          ./scripts/bootstrap-wasp.sh
+          node apps/web/node_modules/prisma/build/index.js migrate deploy --schema=apps/web/.wasp/out/db/schema.prisma
+      - name: Verify application
+        run: ./scripts/verify.sh
+      - name: Check self-host configuration
+        run: |
+          docker compose version
+          node --test deploy/selfhost/config.test.mjs
+
+  selfhost:
+    name: Self-host images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: adtrender-ci
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Initialize disposable local configuration
+        run: ./scripts/selfhost-init.sh localhost owner@example.test
+      - name: Build API and both web surfaces
+        run: docker compose --profile mailpit build migrate caddy
+      - name: Validate Caddy and packaged assets
+        run: |
+          docker compose run --rm --no-deps --entrypoint caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          docker compose run --rm --no-deps --entrypoint sh caddy -ec 'test -s /srv/public/200.html && test -s /srv/admin/200.html'
+      - name: Remove disposable resources
+        if: always()
+        run: docker compose --profile mailpit down --volumes --remove-orphans
