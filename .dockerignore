@@ -1,0 +1,25 @@
+# Self-host image build context (docker-compose.yaml). Never send local
+# dependencies, generated output or credentials to the builder.
+**/node_modules
+**/.git
+.github
+**/.wasp
+**/dist
+**/dist-worker
+.local
+.artifacts
+**/.env
+**/.env.*
+!**/.env.*.example
+**/*.env
+!**/*.env.example
+**/.npmrc
+!apps/web/.npmrc
+**/.pgpass
+**/*.dump
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa
+**/id_ed25519

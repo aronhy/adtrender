@@ -52,14 +52,14 @@ pnpm-debug.log*
 .pytest_cache/
 
 # Independent SaaS compiler and local acceptance state
-/saas/app/.wasp/
-/saas/.local/
-/saas/.artifacts/
-/saas/collector/deploy/fleet/registry.lock
-!/saas/app/.env.server.example
-!/saas/app/.env.client.example
+/apps/web/.wasp/
+/.local/
+/.artifacts/
+/apps/collector/deploy/fleet/registry.lock
+!/apps/web/.env.server.example
+!/apps/web/.env.client.example
 
-saas/app/dist-worker/
+apps/web/dist-worker/
 
 # Dependency links in isolated release workspaces.
 node_modules

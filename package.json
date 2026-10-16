@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "vitest run --config saas/vitest.config.ts",
-    "verify": "./saas/scripts/verify.sh"
+    "test": "vitest run --config vitest.config.ts",
+    "verify": "./scripts/verify.sh"
   },
   "devDependencies": {
     "@types/express": "5.0.6",

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "../../apps/web/node_modules/@types"
+    ]
+  },
+  "include": [
+    "src/**/*.ts", "src/**/*.json"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ]
+}

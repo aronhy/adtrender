@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://adtrender.com" target="_blank">
-    <img alt="AdTrender" src="saas/app/public/adthrender-mark.svg" width="96" />
+    <img alt="AdTrender" src="apps/web/public/adthrender-mark.svg" width="96" />
   </a>
 </p>
 
@@ -18,19 +18,19 @@
 <p align="center">
   <a href="https://adtrender.com"><strong>AdTrender Cloud »</strong></a>
   ·
-  <a href="saas/README.md">自托管文档</a>
+  <a href="docs/self-hosting.md">自托管文档</a>
   ·
   <a href="https://github.com/aronhy/adtrender/issues">反馈问题</a>
 </p>
 
 <p align="center">
-  <img alt="Facebook" src="saas/app/public/platforms/facebook.png" width="28">
-  <img alt="Instagram" src="saas/app/public/platforms/instagram.png" width="28">
-  <img alt="TikTok" src="saas/app/public/platforms/tiktok.png" width="28">
-  <img alt="Google" src="saas/app/public/platforms/google.png" width="28">
-  <img alt="YouTube" src="saas/app/public/platforms/youtube.png" width="28">
-  <img alt="Pinterest" src="saas/app/public/platforms/pinterest.svg" width="28">
-  <img alt="Snapchat" src="saas/app/public/platforms/snapchat.svg" width="28">
+  <img alt="Facebook" src="apps/web/public/platforms/facebook.png" width="28">
+  <img alt="Instagram" src="apps/web/public/platforms/instagram.png" width="28">
+  <img alt="TikTok" src="apps/web/public/platforms/tiktok.png" width="28">
+  <img alt="Google" src="apps/web/public/platforms/google.png" width="28">
+  <img alt="YouTube" src="apps/web/public/platforms/youtube.png" width="28">
+  <img alt="Pinterest" src="apps/web/public/platforms/pinterest.svg" width="28">
+  <img alt="Snapchat" src="apps/web/public/platforms/snapchat.svg" width="28">
 </p>
 
 想省去部署和采集节点运维，直接用 [adtrender.com](https://adtrender.com)；想掌控数据，就用这个仓库在自己的服务器上部署。
@@ -51,34 +51,46 @@
 
 | 目录 | 内容 |
 | --- | --- |
-| [`saas/app`](saas/app) | Web 应用：官网、工作台、认证、团队、计费、API、数据库迁移 |
-| [`saas/collector`](saas/collector) | 各平台采集器与节点部署工具 |
-| [`saas/worker`](saas/worker) | 独立后台进程：采集调度、邮件、分析任务 |
-| [`saas/contracts`](saas/contracts) | 应用与 worker 共享的数据契约 |
-| [`saas/deploy`](saas/deploy) | 容器、反向代理、备份恢复与健康检查 |
-| [`scripts/saas-migration`](scripts/saas-migration) | 旧数据导入工具 |
+| [`apps/web`](apps/web) | Web 应用：官网、工作台、认证、团队、计费、API、数据库迁移 |
+| [`apps/worker`](apps/worker) | 独立后台进程：采集调度、邮件、分析任务 |
+| [`apps/collector`](apps/collector) | 各平台采集器与节点部署工具 |
+| [`packages/contracts`](packages/contracts) | 应用与 worker 共享的数据契约 |
+| [`deploy`](deploy) | 自托管镜像、容器、反向代理、备份恢复与健康检查 |
+| [`scripts`](scripts) | 构建、验证、发布脚本；[`scripts/migration`](scripts/migration) 是旧数据导入工具 |
 
 ## 快速开始
 
-需要 Node.js 24、PostgreSQL。完整配置项、启动和发布说明见 [saas/README.md](saas/README.md)。
+### 用 Docker 自托管
+
+需要一台装有 Docker 的服务器，并把 `你的域名`、`api.你的域名`、`s3.你的域名` 解析到这台机器。一条命令生成带随机密钥的 `.env`，再填好 SMTP 发信账号即可启动；Caddy 会自动申请 HTTPS 证书。
 
 ```bash
-cd saas/toolchain
-npm ci --no-audit
-cd ../..
-export PATH="$PWD/saas/toolchain/node_modules/.bin:$PATH"
-cd saas/app
-npm ci --no-audit
-if [ ! -f .env.server ]; then cp .env.server.example .env.server; fi
-# 填写 .env.server，创建对应 PostgreSQL 数据库，再部署迁移。
-node --env-file=.env.server node_modules/prisma/build/index.js migrate deploy
-cd ../..
-VITE_CUSTOMER_APP_ORIGIN=http://localhost:3000 \
-VITE_ADMIN_APP_ORIGIN=http://localhost:3002 \
-./saas/scripts/wasp.sh start
+./scripts/selfhost-init.sh research.example.com you@example.com
+docker compose up -d --build
 ```
 
-默认页面 `http://localhost:3000`，API `http://localhost:3001`。本地管理员入口需另启管理端；注册邮件还需配置 outbox 密钥、SMTP 接收器并启动独立 worker，详见 [本地配置与启动](saas/README.md#本地配置与启动)。验证及浏览器依赖安装见 [贡献指南](CONTRIBUTING.md)。
+只想在本机试用时，把域名写成 `localhost`，会改用 Caddy 本地证书和自带的 Mailpit 收件箱（`http://127.0.0.1:8025`）：
+
+```bash
+./scripts/selfhost-init.sh localhost you@example.com
+docker compose --profile mailpit up -d --build
+```
+
+打开 `https://localhost` 用上面的邮箱注册。各服务说明和升级、备份方法见 [docs/self-hosting.md](docs/self-hosting.md#docker-compose-自托管)。
+
+### 本地开发
+
+需要 Node.js 24、PostgreSQL。完整配置项见 [docs/self-hosting.md](docs/self-hosting.md)。
+
+```bash
+(cd toolchain && npm ci --no-audit)
+export PATH="$PWD/toolchain/node_modules/.bin:$PATH"
+(cd apps/web && npm ci --no-audit && cp .env.server.example .env.server)   # 填写数据库等配置
+./scripts/bootstrap-wasp.sh
+./scripts/wasp.sh start
+```
+
+默认页面 `http://localhost:3000`，API `http://localhost:3001`。
 
 ## 参与贡献
 
@@ -86,6 +98,6 @@ VITE_ADMIN_APP_ORIGIN=http://localhost:3002 \
 
 ## 许可
 
-[MIT](LICENSE)。`saas/` 基于 Open SaaS 模板，其许可见 [saas/OPEN-SAAS-LICENSE](saas/OPEN-SAAS-LICENSE)。
+[MIT](LICENSE)。`apps/web` 基于 Open SaaS 模板，其许可见 [OPEN-SAAS-LICENSE](OPEN-SAAS-LICENSE)。
 
 采集公开广告数据时，请遵守各平台的服务条款和所在地区的法律法规。
