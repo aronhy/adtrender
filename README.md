@@ -35,6 +35,8 @@
 
 想省去部署和采集节点运维，直接用 [adtrender.com](https://adtrender.com)；想掌控数据，就用这个仓库在自己的服务器上部署。
 
+开源版包含完整的应用、后台任务和采集接入接口；各平台的采集器不在本仓库中，可以按[接入说明](docs/self-hosting.md#采集器)接入自己的采集器。
+
 ## 功能
 
 - **多平台广告库**：按关键词、平台、国家、素材类型搜索公开广告，查看广告详情、投放历史和广告主。
@@ -47,14 +49,14 @@
 
 ## 技术栈
 
-[Wasp](https://wasp.sh) / [Open SaaS](https://github.com/wasp-lang/open-saas) · React · Node.js · PostgreSQL + Prisma · Playwright 采集器 · S3 兼容对象存储
+[Wasp](https://wasp.sh) / [Open SaaS](https://github.com/wasp-lang/open-saas) · React · Node.js · PostgreSQL + Prisma · S3 兼容对象存储
 
 | 目录 | 内容 |
 | --- | --- |
 | [`apps/web`](apps/web) | Web 应用：官网、工作台、认证、团队、计费、API、数据库迁移 |
 | [`apps/worker`](apps/worker) | 独立后台进程：采集调度、邮件、分析任务 |
-| [`apps/collector`](apps/collector) | 各平台采集器与节点部署工具 |
-| [`packages/contracts`](packages/contracts) | 应用与 worker 共享的数据契约 |
+| [`packages/contracts`](packages/contracts) | 应用、worker 与采集器共享的数据契约 |
+| [`apps/web/db/ingest`](apps/web/db/ingest) | 采集数据入库函数：外部采集器通过它写入广告数据 |
 | [`deploy`](deploy) | 自托管镜像、容器、反向代理、备份恢复与健康检查 |
 | [`scripts`](scripts) | 构建、验证、发布脚本；[`scripts/migration`](scripts/migration) 是旧数据导入工具 |
 

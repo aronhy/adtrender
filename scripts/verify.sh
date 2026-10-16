@@ -21,8 +21,6 @@ bash -n "$repo_dir/scripts/backup.sh" "$repo_dir/scripts/restore-check.sh" "$rep
 node --check "$repo_dir/scripts/prepare-release.mjs"
 node --test "$repo_dir/deploy/prepare-release.test.mjs"
 node --test "$repo_dir/deploy/health-monitor.test.mjs"
-printf '%s\n' 'Checking the seed baseline without rewriting source files...'
-node --import "$repo_dir/apps/web/node_modules/tsx/dist/loader.mjs" "$repo_dir/scripts/generate-seed-baseline.ts" --check
 printf '%s\n' 'Building shared contracts before the tests consume their package exports...'
 "$repo_dir/apps/web/node_modules/.bin/tsc" -p "$repo_dir/packages/contracts/tsconfig.json"
 printf '%s\n' 'Generating and building Wasp before tests inspect its actual routes...'

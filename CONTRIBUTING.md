@@ -7,7 +7,7 @@
 3. 提交前运行验证：
    ```bash
    npm ci
-   npx vitest run --config vitest.config.ts apps/collector
+   npx vitest run --config vitest.config.ts apps/worker
    REACT_APP_API_URL=https://api.example.invalid ./scripts/verify.sh
    ```
    需要数据库的集成测试会在缺少测试库时跳过，请在 PR 里如实写明跳过了哪些。

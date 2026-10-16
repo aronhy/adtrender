@@ -55,7 +55,6 @@ pnpm-debug.log*
 /apps/web/.wasp/
 /.local/
 /.artifacts/
-/apps/collector/deploy/fleet/registry.lock
 !/apps/web/.env.server.example
 !/apps/web/.env.client.example
 
