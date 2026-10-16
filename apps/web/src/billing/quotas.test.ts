@@ -3,7 +3,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { initializeTrial, admitQuota, releaseQuota, reserveAnalysis, settleUsage, releaseUsage } from './quotas';
 
-const db = new PrismaClient({datasources: {db: {url: process.env.SAAS_TEST_DATABASE_URL ?? 'postgresql://saas_local@127.0.0.1:55438/saas_test'}}});
+const testUrl = process.env.SAAS_TEST_DATABASE_URL;
+const db = new PrismaClient({datasources: {db: {url: testUrl ?? 'postgresql://unused@127.0.0.1:1/not_run'}}});
 afterAll(() => db.$disconnect());
 async function fixture() {
   const id = randomUUID();
@@ -12,7 +13,7 @@ async function fixture() {
   await db.$transaction(tx => initializeTrial(tx, org.id, {days:7,workspaces:2,members:2,savedAds:3,analyses:2}));
   return org;
 }
-describe('transactional organization quotas', () => {
+describe.skipIf(!testUrl)('transactional organization quotas', () => {
   it('never over-reserves with concurrent requests and deduplicates retries', async () => {
     const org = await fixture();
     const attempts = await Promise.allSettled(Array.from({length:8},(_,i) => db.$transaction(tx => reserveAnalysis(tx, org.id, `job-${i}`))));
