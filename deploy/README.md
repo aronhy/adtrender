@@ -100,6 +100,11 @@ sudo /opt/ad-research/node-v24.14.1/bin/node \
 
 数据库 dump 现同时导出对象引用。需要恢复公共素材、团队私有文件和原始采集证据时，继续执行联合备份与恢复流程；仅有数据库恢复报告不能代表对象字节已经恢复。
 
+目标存储必须支持 `If-None-Match: *` 条件写入。恢复前会探测并清理随机临时对象，
+因此恢复凭据还需具备 `.adtrender-restore-probe/*` 的删除权限；业务对象不会被删除。
+Garage 2.4.1 不满足该条件写入要求，脚本会在创建恢复数据库和上传业务对象之前拒绝恢复。
+错误码、权限及验收入口见[存储兼容性说明](backup/README.md)。
+
 把两份 service 文件放到 systemd 配置目录，按实际 Node / 应用路径校对，`systemd-analyze verify` 通过后再 `daemon-reload`。把 Caddy 示例域名换为实际域名，执行 `caddy fmt --diff /etc/caddy/Caddyfile`、`caddy adapt --config /etc/caddy/Caddyfile --validate`；后者校验配置但不会启动服务。[Caddy 官方命令说明](https://caddyserver.com/docs/command-line)
 
 静态站点 fallback 是 Wasp 的 **`200.html`**，确保 `/app/ads/:adId` 可直达。当前包没有 index.html，因此非 assets 的 `file_server` 显式设置 `index index.html 200.html`，避免首页 `/` 已匹配根目录却找不到默认索引。`/assets/*` 单独处理，缺失资源返回404，不把页面HTML当作可缓存一年的素材。默认不启用带完整请求 URL 的访问日志，避免一次性邀请 / 认证 token 被日志记录。该规则已有静态断言，Caddy 实际运行尚未验证。[Caddy 官方 try_files 说明](https://caddyserver.com/docs/caddyfile/directives/try_files)

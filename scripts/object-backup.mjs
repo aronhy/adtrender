@@ -222,6 +222,51 @@ async function verifyTarget(store, entry, limits) {
   const actual = await readStored(store, entry.key, limits.maxObjectBytes);
   matches(actual, entry);
 }
+const probePrefix = '.adtrender-restore-probe/';
+const statusCode = error => error?.$metadata?.httpStatusCode;
+// Probe only a random disposable key, never a database-referenced object.
+// A 412 alone is insufficient: read back the original bytes and verify cleanup.
+async function verifyConditionalWrites(store) {
+  if (typeof store.delete !== 'function') fail('OBJECT_STORE_CONDITIONAL_PUT_UNVERIFIED');
+  const key = `${probePrefix}${randomUUID()}`;
+  const original = Buffer.from(randomUUID()), replacement = Buffer.from(randomUUID());
+  const options = { contentType: 'application/octet-stream', ifNoneMatch: '*' };
+  const read = () => readStored(store, key, original.length);
+  let attempted = false;
+  try {
+    try { await read(); fail('OBJECT_STORE_CONDITIONAL_PUT_UNVERIFIED'); }
+    catch (error) { if (statusCode(error) !== 404) throw error; }
+    attempted = true;
+    await store.put(key, original, options);
+    matches(await read(), { sha256: sha(original), sizeBytes: original.length, contentType: options.contentType });
+    let rejected = false;
+    try { await store.put(key, replacement, options); }
+    catch (error) {
+      if (statusCode(error) !== 412) throw error;
+      rejected = true;
+    }
+    const actual = await read();
+    if (!rejected || actual.sha256 !== sha(original) || actual.sizeBytes !== original.length
+      || actual.contentType !== options.contentType) fail('OBJECT_STORE_CONDITIONAL_PUT_UNSUPPORTED');
+  } catch (error) {
+    fail(error instanceof SafeFailure && error.code === 'OBJECT_STORE_CONDITIONAL_PUT_UNSUPPORTED'
+      ? error.code : 'OBJECT_STORE_CONDITIONAL_PUT_UNVERIFIED');
+  }
+  finally {
+    if (attempted) {
+      try {
+        let actual;
+        try { actual = await read(); } catch (error) { if (statusCode(error) !== 404) throw error; }
+        if (actual) {
+          // Preserve unexpected bytes, including a concurrent writer's object.
+          if (actual.sizeBytes !== original.length || ![sha(original), sha(replacement)].includes(actual.sha256)) throw new Error();
+          await store.delete(key);
+          try { await read(); throw new Error(); } catch (error) { if (statusCode(error) !== 404) throw error; }
+        }
+      } catch { fail('OBJECT_STORE_PROBE_CLEANUP_FAILED'); }
+    }
+  }
+}
 export async function restoreObjects({ databaseBackup, archiveDirectory, targetStore, targetIdentity, verifyDatabase } = {}) {
   let lock, lockPath;
   try {
@@ -246,6 +291,11 @@ export async function restoreObjects({ databaseBackup, archiveDirectory, targetS
     // Read back any pre-existing objects before attempting a database restore.
     for (const entry of objects) if (current.has(entry.key)) await verifyTarget(targetStore, entry, archive.limits);
     if (receipt?.status === 'JOINT_RESTORE_VERIFIED' && current.size !== objects.length) fail('OBJECT_RESTORE_COMPLETED_TARGET_CHANGED');
+    if (current.size < objects.length) {
+      await verifyConditionalWrites(targetStore);
+      const checked = await targetKeys(targetStore, objects.length, expected);
+      if (checked.size !== current.size || [...checked].some(key => !current.has(key))) fail('OBJECT_RESTORE_TARGET_CHANGED');
+    }
     const report = await verifyDatabase();
     if (!object(report) || report.status !== 'RESTORE_VERIFIED' || report.backupSha256 !== archive.proof.sha256
       || report.objectReferencesVerified !== true || report.objectReferencesVersion !== 1) fail('DATABASE_RESTORE_UNVERIFIED');
@@ -282,7 +332,7 @@ function configuredStore(env, prefix, load) {
   if (force !== undefined && !['true', 'false'].includes(force)) fail('OBJECT_STORE_CONFIGURATION_INVALID');
   const credentials = { accessKeyId: required('AWS_ACCESS_KEY_ID'), secretAccessKey: required('AWS_SECRET_ACCESS_KEY') };
   if (env[prefix + 'AWS_SESSION_TOKEN']) credentials.sessionToken = env[prefix + 'AWS_SESSION_TOKEN'];
-  const { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command } = load('@aws-sdk/client-s3');
+  const { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = load('@aws-sdk/client-s3');
   const client = new S3Client({ region, endpoint: storeIdentity.endpoint.startsWith('aws:') ? undefined : storeIdentity.endpoint,
     credentials, forcePathStyle: force === 'true', ignoreConfiguredEndpointUrls: true, maxAttempts: 1, requestChecksumCalculation: 'WHEN_REQUIRED',
     requestHandler: { connectionTimeout: 5000, requestTimeout: 30000, throwOnRequestTimeout: true } });
@@ -294,6 +344,10 @@ function configuredStore(env, prefix, load) {
       const ContentLength = Body instanceof Uint8Array ? Body.byteLength : streamLengths.get(Body);
       if (!Number.isSafeInteger(ContentLength)) fail('OBJECT_STORE_INPUT_INVALID');
       await client.send(new PutObjectCommand({ Bucket, Key, Body, ContentLength, ContentType: contentType, IfNoneMatch: '*', CacheControl: 'private, no-store' }), { abortSignal: AbortSignal.timeout(30000) });
+    },
+    async delete(Key) {
+      if (!/^\.adtrender-restore-probe\/[a-f0-9-]{36}$/.test(Key)) fail('OBJECT_DELETE_FORBIDDEN');
+      await client.send(new DeleteObjectCommand({ Bucket, Key }), { abortSignal: AbortSignal.timeout(30000) });
     },
     async list(limit) {
       const keys = []; let token;
