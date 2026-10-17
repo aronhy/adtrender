@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import type { WorkerTickOptions } from '../../collector/src/worker';
+import type { WorkerTickOptions } from './collection-tick';
 
 export function evidenceWriter(env: NodeJS.ProcessEnv = process.env): WorkerTickOptions['persistEvidence'] {
   const bucket = env.S3_BUCKET;
