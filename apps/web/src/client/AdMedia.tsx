@@ -1,3 +1,4 @@
+import { MediaPlaceholder } from './ui/MediaPlaceholder';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageIcon, Play, Video } from 'lucide-react';
 import { useWorkspaceLocale } from './workspace-i18n/locale';
@@ -59,13 +60,14 @@ export function MediaPlayer({ media, compact = false, onPlay, revision = 0, onUn
     {video ? <Video size={27} aria-hidden="true" /> : <ImageIcon size={27} aria-hidden="true" />}<span>{t(failed ? 'ads.mediaFailed' : media?.status === 'PENDING' ? 'ads.mediaPending' : 'ads.mediaUnavailable')}</span>{!compact && <small>{t('ads.mediaHint')}</small>}
   </div>;
   const poster = !posterFailed ? mediaUrl(media.posterUrl) : undefined;
-  if (compact && video) return <div className={`media-view video-preview ${loaded ? 'media-loaded' : ''}`}>
+  if (compact && video) return <div className={`media-view video-preview ${loaded ? 'media-loaded' : ''}`} aria-busy={!loaded}>
+    {!loaded && <MediaPlaceholder />}
     {poster ? <img ref={imageElement} key={`${sourceKey}:poster`} src={poster} alt={t('ads.videoPoster')} loading="lazy" onLoad={markLoaded} onError={() => { retained.current = null; setPosterFailed(true); setLoaded(false); }} />
       : <video ref={videoElement} key={`${sourceKey}:video`} src={videoPreviewUrl(src)} muted playsInline preload="metadata" tabIndex={-1} aria-hidden="true" onLoadedData={markLoaded} onSeeked={markLoaded} onError={fail} />}
     <span><Play size={25} aria-hidden="true" />{t('ads.videoCreative')}</span>
   </div>;
-  return <div className={`media-view ${loaded ? 'media-loaded' : ''}`}>
-    {!loaded && <div className="media-loading" role="status"><span className="spinner" aria-hidden="true" /><span>{t('ads.mediaLoading')}</span></div>}
+  return <div className={`media-view ${loaded ? 'media-loaded' : ''}`} aria-busy={!loaded}>
+    {!loaded && <MediaPlaceholder />}
     {video ? <video ref={videoElement} key={sourceKey} src={src} poster={poster} aria-label={t('ads.videoCreative')} controls preload="metadata" playsInline onLoadedMetadata={markLoaded} onError={fail} onPlay={onPlay} /> : <img ref={imageElement} key={sourceKey} src={src} alt={t('ads.creativeAlt')} loading={compact ? 'lazy' : 'eager'} onLoad={markLoaded} onError={fail} />}
   </div>;
 }

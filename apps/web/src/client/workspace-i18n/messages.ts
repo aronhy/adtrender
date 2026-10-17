@@ -1,3 +1,4 @@
+import { uiMessages } from './ui';
 import { commonMessages } from './common';
 import { workspaceMessages } from './workspace';
 import { adsMessages } from './ads';
@@ -6,7 +7,7 @@ import { researchMessages } from './research';
 import { settingsMessages } from './settings';
 import type { Locale } from '../landing/messages';
 
-export const workspaceCatalog: Record<string, Record<Locale, string>> = { ...commonMessages, ...workspaceMessages, ...adsMessages, ...adDetailMessages, ...researchMessages, ...settingsMessages };
+export const workspaceCatalog: Record<string, Record<Locale, string>> = { ...uiMessages, ...commonMessages, ...workspaceMessages, ...adsMessages, ...adDetailMessages, ...researchMessages, ...settingsMessages };
 export type MessageValues = Record<string, string | number>;
 export function translate(locale: Locale, key: string, values: MessageValues = {}) {
   return (workspaceCatalog[key]?.[locale] ?? key).replace(/\{(\w+)\}/g, (placeholder, name: string) => String(values[name] ?? placeholder));

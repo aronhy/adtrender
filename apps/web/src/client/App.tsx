@@ -1,3 +1,4 @@
+import { ToastProvider, ToastViewport, useToast } from './ui/Toast';
 import {landingPageUrl} from './ad-links';
 import { Brand } from './brand/Brand';
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
@@ -105,17 +106,24 @@ function PublicLayout() {
   return <div className="public-site"><header className="site-header"><Brand /><nav aria-label="官网导航"><NavLink to="/pricing">套餐</NavLink><NavLink to="/help">帮助</NavLink><Link to="/login">登录</Link><Link className="button primary compact" to="/signup">开始使用</Link></nav></header><Outlet /><footer className="site-footer"><Brand /><p>公开广告，有据可查。团队研究，各自保留。</p><nav aria-label="页脚导航"><Link to="/help">帮助中心</Link><Link to="/terms">服务条款</Link><Link to="/privacy">隐私说明</Link></nav><small>已开放注册 · 正式服务与价格以发布说明为准</small></footer></div>;
 }
 function WorkspaceLayout() {
+  const [params] = useSearchParams();
+  const scope = params.get('workspace') || params.get('organization') || 'setup';
+  return <ToastProvider scope={scope}><WorkspaceContent /></ToastProvider>;
+}
+function WorkspaceContent() {
   const { t, href, locale, error: describeError } = useWorkspaceLocale();
   const [params] = useSearchParams(); const navigate = useNavigate(); const location = useLocation();
   const workspaceId = params.get('workspace') || undefined;
   const organizationId = params.get('organization') || undefined;
   const query = useQuery(getAppState, { workspaceId, organizationId }); const state = query.data as AppState | undefined;
-  const [menuOpen, setMenuOpen] = useState(false); const [notice, setNotice] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false); const { notify } = useToast();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('adthrender.workspace.sidebarCollapsed') === 'true'; }
     catch { return false; }
   });
   const [commandVersion, setCommandVersion] = useState(0);
+  const commandScope = workspaceId ?? organizationId ?? 'setup';
+  const liveCommandScope = useRef(commandScope); liveCommandScope.current = commandScope;
   const menuRef = useRef<HTMLElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -149,16 +157,29 @@ function WorkspaceLayout() {
     return () => wide.removeEventListener('change', closeWideMenu);
   }, []);
   const run = async (command: AppCommand): Promise<CommandResult> => {
-    const result = (await appCommand(command)) as CommandResult;
+    const operationKey = 'idempotencyKey' in command && command.idempotencyKey ? command.idempotencyKey : crypto.randomUUID();
+    const noticeId = `command:${operationKey}`;
+    const startedScope = commandScope;
+    let result: CommandResult;
+    try { result = (await appCommand(command)) as CommandResult; }
+    catch (reason) { notify({ id: noticeId, type: 'error', message: describeError(reason) }); throw reason; }
+    if (liveCommandScope.current !== startedScope) return result ?? {};
     setCommandVersion(version => version + 1);
-    setNotice(commandNoticeKey(command.type));
+    const message = t(command.type === 'SAVE_AD' ? 'ui.saved' : command.type === 'SAVE_NOTE' ? 'ui.noteSaved' : commandNoticeKey(command.type));
+    let refreshFailed = false;
+    const refresh = async () => {
+      try { const latest = await query.refetch(); if (latest.isError || latest.error) refreshFailed = true; }
+      catch { refreshFailed = true; }
+    };
     if (result && Object.hasOwn(result, 'workspaceId')) {
       const nextWorkspaceId = result.workspaceId ?? undefined;
       const nextOrganizationId = nextWorkspaceId ? undefined : result.organizationId;
       const pricingDestination = continuePricingAfterSetup(command.type, nextWorkspaceId, params.get('plan'));
       navigate(href(pricingDestination ?? (nextWorkspaceId ? workspaceHref('/app', nextWorkspaceId) : nextOrganizationId ? `/app?organization=${encodeURIComponent(nextOrganizationId)}` : '/app')), { replace: true });
-      if (workspaceId === nextWorkspaceId && organizationId === nextOrganizationId) await query.refetch();
-    } else await query.refetch();
+      if (workspaceId === nextWorkspaceId && organizationId === nextOrganizationId) await refresh();
+    } else await refresh();
+    if (liveCommandScope.current !== startedScope) return result ?? {};
+    notify(refreshFailed ? {id:noticeId,type:'info',message:t('ui.refreshFailed'),action:{label:t('ui.refresh'),run:async()=>{await query.refetch();}}} : {id:noticeId,type:'success',message});
     if (result?.redirectUrl) {
       const target = new URL(result.redirectUrl, window.location.origin);
       if (target.protocol === 'https:' || target.origin === window.location.origin) window.location.assign(target.href);
@@ -186,9 +207,9 @@ function WorkspaceLayout() {
       <div className="sidebar-bottom"><Link to={href('/help')} className="support-link" aria-label={t('nav.help')} title={t('nav.help')}><CircleHelp size={19} aria-hidden="true" /><span className="sidebar-link-label">{t('nav.help')}</span></Link>{state && <div className="account-line"><span className="avatar" aria-hidden="true">{(state.user.displayName || state.user.email).slice(0, 1).toUpperCase()}</span><div><strong>{state.user.displayName || t('nav.account')}</strong><small>{state.user.email}</small></div><button onClick={() => void logout()} className="icon-button workspace-signout" aria-label={t('nav.signOut')} title={t('nav.signOut')}><LogOut size={17} aria-hidden="true" /></button></div>}</div>
     </aside>
     <main className="workspace-main" id="main-content" tabIndex={-1} inert={menuOpen || undefined}><div className="workspace-topline"><div className="workspace-context"><div><span>{state?.organizations.find(org => org.id === (selected?.organizationId ?? state?.billing?.organizationId))?.name ?? t('nav.start')}</span><span className="workspace-breadcrumb"> / {currentTitle}</span></div><select className="workspace-topline-switch" aria-label={t('nav.workspace')} title={t('nav.workspace')} value={selected?.id ?? ''} disabled={!state?.workspaces.length} onChange={event => switchWorkspace(event.target.value)}><option value="" disabled>{t('nav.noWorkspace')}</option>{state?.workspaces.map(workspace => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select></div><WorkspaceLanguagePicker /></div>
-      {notice && <div className="notice" role="status">{t(notice)}<button className="icon-button" onClick={() => setNotice('')} aria-label={t('common.dismiss')}><X size={16} /></button></div>}
+
       {query.isLoading ? <Loading label={t('common.workspaceLoading')} /> : query.error || !state ? <Empty title={t('common.workspaceError')} action={<button className="button secondary" onClick={() => void query.refetch()}>{t('common.reconnect')}</button>}>{query.error ? describeError(query.error) : t('common.workspaceErrorBody')}</Empty> : <AppContext.Provider key={`${selected?.id ?? 'new'}:${location.pathname.startsWith('/app/admin') ? 'admin' : 'app'}`} value={{ state, commandVersion, run, refresh: query.refetch }}><Outlet /></AppContext.Provider>}
-    </main></div>;
+    </main><ToastViewport /></div>;
 }
 function AdminLayout() {
   const query = useQuery(getAppState, {}); const state = query.data as AppState | undefined;

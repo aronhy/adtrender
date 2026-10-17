@@ -1,3 +1,5 @@
+import { AnimatedTabs } from './ui/AnimatedTabs';
+import { useToast } from './ui/Toast';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { getResearchPage, useQuery } from 'wasp/client/operations';
@@ -36,16 +38,7 @@ function ResearchContent({ workspaceId }: { workspaceId: string }) {
         finally { setRefreshing(false); }
       }}><RefreshCw size={16} aria-hidden="true" />{t(refreshing ? 'research.refreshing' : 'research.refresh')}</button>} />
     {refreshError != null && <p className="inline-error" role="alert">{error(refreshError)}</p>}
-    <div className="tabs" role="tablist" aria-label={t('research.tabs')}>
-      {tabs.map((value, index) => <button key={value} type="button" id={`${groupId}-${value}`} role="tab" aria-selected={tab === value} aria-controls={`${groupId}-panel`} tabIndex={tab === value ? 0 : -1}
-        onClick={() => setTab(value)} onKeyDown={event => {
-          const next = event.key === 'ArrowRight' ? tabs[(index + 1) % tabs.length] : event.key === 'ArrowLeft' ? tabs[(index + tabs.length - 1) % tabs.length] : event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs[tabs.length - 1] : undefined;
-          if (next) { event.preventDefault(); setTab(next); document.getElementById(`${groupId}-${next}`)?.focus(); }
-        }}>
-        {value === 'saved' ? <Bookmark size={17} aria-hidden="true" /> : <FileSearch size={17} aria-hidden="true" />}
-        {t(value === 'saved' ? 'research.savedTab' : 'research.analysisTab')}<span>{(value === 'saved' ? state.overview.savedCount : state.overview.analysisCount).toLocaleString(locale)}</span>
-      </button>)}
-    </div>
+    <AnimatedTabs className="tabs" idBase={groupId} panelId={()=>`${groupId}-panel`} value={tab} onChange={setTab} label={t('research.tabs')} items={tabs.map(value=>({value,label:<>{value==='saved'?<Bookmark size={17} aria-hidden="true"/>:<FileSearch size={17} aria-hidden="true"/>}{t(value==='saved'?'research.savedTab':'research.analysisTab')}<span>{(value==='saved'?state.overview.savedCount:state.overview.analysisCount).toLocaleString(locale)}</span></>}))} />
     <div id={`${groupId}-panel`} role="tabpanel" aria-labelledby={`${groupId}-${tab}`}>
       {tab === 'saved' && <>
         <div className="research-tools"><Field label={t('research.folderFilter')}><select value={folderId} onChange={event => setFolderId(event.target.value)}><option value="">{t('research.allSaved')}</option>{state.research.folders.map(folder => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></Field>
@@ -125,6 +118,8 @@ function ResearchNote({ savedAdId, workspaceId, note, label }: { savedAdId: stri
 }
 
 function AnalysisCard({ analysis, workspaceId }: { analysis: AnalysisView; workspaceId: string }) {
+  const {notify}=useToast(); const {t:noticeText}=useWorkspaceLocale(); const previousStatus=useRef(analysis.status);
+  useEffect(()=>{const wasPending=['QUEUED','RUNNING','PENDING'].includes(previousStatus.current);previousStatus.current=analysis.status;if(wasPending&&['SUCCEEDED','FAILED'].includes(analysis.status))notify({id:`analysis:${analysis.id}:${analysis.status}`,type:analysis.status==='SUCCEEDED'?'success':'error',message:noticeText(analysis.status==='SUCCEEDED'?'ui.analysisDone':'ui.analysisFailed')});},[analysis.id,analysis.status,notify,noticeText]);
   const { state } = useApp();
   const { t, href, date, error } = useWorkspaceLocale();
   const editable = canEdit(state);

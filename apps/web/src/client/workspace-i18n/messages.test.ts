@@ -1,3 +1,4 @@
+import { uiMessages } from './ui';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
@@ -24,7 +25,7 @@ const placeholders = (value: string) => (value.match(/\{\w+\}/g) ?? []).sort();
 
 describe('workspace message catalog', () => {
   it('has no overlapping page keys and supplies four complete translations with the same placeholders', () => {
-    const keys = [commonMessages, workspaceMessages, adsMessages, adDetailMessages, researchMessages, settingsMessages].flatMap(catalog => Object.keys(catalog));
+    const keys = [uiMessages, commonMessages, workspaceMessages, adsMessages, adDetailMessages, researchMessages, settingsMessages].flatMap(catalog => Object.keys(catalog));
     expect(new Set(keys).size).toBe(keys.length);
     expect(Object.keys(workspaceCatalog).sort()).toEqual(keys.sort());
     for (const [key, messages] of Object.entries(workspaceCatalog)) {

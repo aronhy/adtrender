@@ -1,3 +1,4 @@
+import { FilterSelect } from './ui/FilterSelect';
 import {landingPageUrl} from './ad-links';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
@@ -381,7 +382,7 @@ function AdsContent({ workspaceId }: { workspaceId: string }) {
           >
             {t("ads.library.all")}
           </button>
-          <select
+          <FilterSelect
             className="library-category"
             name="category"
             aria-label={t("ads.library.category")}
@@ -398,7 +399,7 @@ function AdsContent({ workspaceId }: { workspaceId: string }) {
                 {value}
               </option>
             ))}
-          </select>
+          </FilterSelect>
           <span className="library-row-hint">
             {t("ads.library.seedClassification")}
           </span>
@@ -457,18 +458,18 @@ function AdsContent({ workspaceId }: { workspaceId: string }) {
           </Field>
           {google && (
             <Field label={t("ads.library.channel")}>
-              <select name="channel" defaultValue={filters.channel || ""}>
+              <FilterSelect name="channel" aria-label={t("ads.library.channel")} defaultValue={filters.channel || ""}>
                 <option value="">{t("ads.library.all")}</option>
                 <option value="SEARCH">{t("ads.library.searchChannel")}</option>
                 <option value="YOUTUBE">YouTube</option>
                 <option value="UNKNOWN">
                   {t("ads.library.unknownChannel")}
                 </option>
-              </select>
+              </FilterSelect>
             </Field>
           )}
           <Field label={t("ads.library.observedRegion")}>
-            <select name="country" defaultValue={filters.country || ""}>
+            <FilterSelect name="country" aria-label={t("ads.library.observedRegion")} defaultValue={filters.country || ""}>
               <option value="">{t("ads.countryFilterAll")}</option>
               {Array.from(
                 new Set([
@@ -483,11 +484,12 @@ function AdsContent({ workspaceId }: { workspaceId: string }) {
                 </option>
               ))}
               <option value="ALL">{t("ads.globalQuery")}</option>
-            </select>
+            </FilterSelect>
           </Field>
           <Field label={t("ads.library.contentState")}>
-            <select
+            <FilterSelect
               name="content"
+              aria-label={t("ads.library.contentState") }
               defaultValue={filters.contentStatus || "available"}
             >
               <option value="available">{t("ads.library.available")}</option>
@@ -496,7 +498,7 @@ function AdsContent({ workspaceId }: { workspaceId: string }) {
                   {t(`ads.library.${value}`)}
                 </option>
               ))}
-            </select>
+            </FilterSelect>
           </Field>
           <button
             type="button"
@@ -510,8 +512,9 @@ function AdsContent({ workspaceId }: { workspaceId: string }) {
         </div>
         <div className="library-advanced" hidden={!advanced}>
           <Field label={t("ads.platform")}>
-            <select
+            <FilterSelect
               name="platform"
+              aria-label={t("ads.platform") }
               defaultValue={filters.platform || ""}
               onChange={(event) => choosePlatform(event.target.value)}
             >
@@ -531,15 +534,15 @@ function AdsContent({ workspaceId }: { workspaceId: string }) {
                   {label}
                 </option>
               ))}
-            </select>
+            </FilterSelect>
           </Field>
           <Field label={t("ads.sourceStatus")}>
-            <select name="status" defaultValue={filters.status || ""}>
+            <FilterSelect name="status" aria-label={t("ads.sourceStatus")} defaultValue={filters.status || ""}>
               <option value="">{t("ads.statusFilterAll")}</option>
               <option value="ACTIVE">{t("ads.active")}</option>
               <option value="INACTIVE">{t("ads.inactive")}</option>
               <option value="UNKNOWN">{t("ads.unknown")}</option>
-            </select>
+            </FilterSelect>
           </Field>
           <Field label={t("ads.startedFrom")}>
             <input
@@ -601,7 +604,7 @@ function AdsContent({ workspaceId }: { workspaceId: string }) {
             <button type="button" className="button primary" onClick={save}>
               {t("ads.library.saveFilters")}
             </button>
-            <select
+            <FilterSelect
               aria-label={t("ads.library.savedFilters")}
               value=""
               onChange={(event) => {
@@ -646,7 +649,7 @@ function AdsContent({ workspaceId }: { workspaceId: string }) {
                   {row.label}
                 </option>
               ))}
-            </select>
+            </FilterSelect>
           </div>
         </div>
         {notice && (

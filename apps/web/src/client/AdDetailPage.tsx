@@ -1,3 +1,7 @@
+import { AnimatedTabs } from './ui/AnimatedTabs';
+import { ResizableAdDetail } from './ui/ResizableAdDetail';
+import { CopyButton, CopyField } from './ui/CopyButton';
+import { useToast } from './ui/Toast';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { getPublicAd, getPublicAdMediaDownload, getPublicRelatedAds, useQuery } from 'wasp/client/operations';
@@ -74,7 +78,7 @@ function AdDetailContent({ workspaceId, adId }: { workspaceId: string; adId: str
         {ad.saved ? <><Check size={17} aria-hidden="true" />{t('ads.saved')}</> : <><Bookmark size={17} aria-hidden="true" />{t('ads.save')}</>}
       </CommandButton><SourceLink url={ad.sourceUrl} onClick={() => track({ type: 'PRODUCT_EVENT', workspaceId, adId, name: 'source_link_click' })}>{t('ads.originalSource')}</SourceLink></div>
     </div>
-    <div className="ws-detail-layout">
+    <ResizableAdDetail>
       <aside className="detail-media ws-detail-creative" aria-label={t('ads.originalCopy')}>
         <CreativeCard ad={ad} media={media} revision={query.dataUpdatedAt} workspaceId={workspaceId} adId={adId} />
         <div className="media-toolbar"><span>{textOnly ? t('ads.library.textAds') : t('ads.assetPosition', { current: (data.media.length ? selectedMediaIndex + 1 : 0).toLocaleString(locale), total: data.media.length.toLocaleString(locale) })}{media && <span className="ws-detail-archive-state"> · {t(media.status === 'CACHED' ? 'ads.detail.assetSaved' : media.status === 'READY' ? 'ads.detail.assetReady' : media.status === 'PENDING' ? 'ads.detail.assetPending' : 'ads.mediaUnavailable')}</span>}</span>
@@ -84,7 +88,7 @@ function AdDetailContent({ workspaceId, adId }: { workspaceId: string; adId: str
           <MediaPlayer media={item} compact revision={query.dataUpdatedAt} />
           <span className="ws-detail-thumb-label">{item.type.toUpperCase() === 'VIDEO' ? <Video size={12} aria-hidden="true" /> : <ImageIcon size={12} aria-hidden="true" />}{(index + 1).toLocaleString(locale)}</span>
         </button>)}</div>}
-        <CreativeTools copy={[ad.headline, ad.copy, ad.description].filter(Boolean).join('\n\n')} textOnly={textOnly} media={media} workspaceId={workspaceId} adId={adId} />
+        <CreativeTools sourceUrl={ad.sourceUrl} copy={[ad.headline, ad.copy, ad.description].filter(Boolean).join('\n\n')} textOnly={textOnly} media={media} workspaceId={workspaceId} adId={adId} />
         <details className="ws-detail-archive"><summary><FileText size={15} aria-hidden="true" /><span>{t('ads.detail.originalRecords')}</span><ChevronDown size={15} aria-hidden="true" /></summary>
           <details className="ws-observations"><summary>{t('ads.observations')}<small>{data.observations.length.toLocaleString(locale)}</small></summary><p className="small-note">{t('ads.observationsHint')}</p>
             {data.observations.length ? <div className="table-wrap"><table><thead><tr><th>{t('ads.observedAt')}</th><th>{t('ads.sourceStatus')}</th><th>{t('ads.country')}</th></tr></thead><tbody>{data.observations.map(observation => <tr key={observation.id}><td>{date(observation.observedAt, true)}</td><td><Status value={sourceStatus(observation.sourceStatus)} /></td><td>{observation.queryCountry || t('ads.unknown')}</td></tr>)}</tbody></table></div> : <p className="small-note">{t('ads.noObservationsBody')}</p>}
@@ -100,12 +104,7 @@ function AdDetailContent({ workspaceId, adId }: { workspaceId: string; adId: str
       </aside>
       <section className="detail-information ws-detail-main">
         <header className="ws-detail-identity"><AdvertiserLogo name={name} url={ad.advertiserAvatarUrl} className="ws-detail-advertiser-icon" /><div><h1>{title}</h1><div className="ws-detail-identity-links">{landingDomain(ad.landingPageUrl) && <SourceLink allowHttp url={ad.landingPageUrl}>{landingDomain(ad.landingPageUrl)}</SourceLink>}<AdPlatformLogos className="ws-detail-platform" platforms={ad.publisherPlatforms} sourceKey={ad.dataSourceKey} unknownLabel={t('ads.platformUnknown')} /></div></div></header>
-        <div className="ws-detail-tabs" role="tablist" aria-label={t('ads.detail')} onKeyDown={event => {
-          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-          event.preventDefault(); const index = detailTabs.indexOf(tab);
-          const next = event.key === 'Home' ? detailTabs[0] : event.key === 'End' ? detailTabs[detailTabs.length - 1] : detailTabs[(index + (event.key === 'ArrowRight' ? 1 : -1) + detailTabs.length) % detailTabs.length];
-          switchTab(next, true);
-        }}>{detailTabs.map(value => <button key={value} type="button" id={`${tabId}-${value}`} role="tab" aria-selected={tab === value} aria-controls={`${tabId}-${value}-panel`} tabIndex={tab === value ? 0 : -1} onClick={() => switchTab(value)}>{t(value === 'history' ? 'ads.history.tab' : value === 'related' ? 'ads.detail.related' : 'ads.detail.overview')}</button>)}</div>
+        <AnimatedTabs className="ws-detail-tabs" idBase={tabId} value={tab} onChange={next => switchTab(next)} label={t('ads.detail')} items={detailTabs.map(value=>({value,label:t(value === 'history' ? 'ads.history.tab' : value === 'related' ? 'ads.detail.related' : 'ads.detail.overview')}))} />
         <div role="tabpanel" id={`${tabId}-${tab}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="ws-detail-tab-panel">
           {tab === 'overview' ? <>
             <section className="ws-detail-panel ws-detail-facts" aria-labelledby={`${tabId}-facts`}>
@@ -129,7 +128,7 @@ function AdDetailContent({ workspaceId, adId }: { workspaceId: string; adId: str
           </> : tab === 'history' ? <AdHistoryPanel workspaceId={workspaceId} adId={adId} /> : <RelatedAds key={`${workspaceId}:${adId}:${ad.dataSourceKey}:${ad.advertiserId}`} workspaceId={workspaceId} adId={adId} returnTo={params.get('returnTo') || ''} unavailable={!summary} advertiserId={ad.advertiserId ?? null} dataSourceKey={ad.dataSourceKey ?? null} onRefreshDetail={() => void query.refetch()} />}
         </div>
       </section>
-    </div>
+    </ResizableAdDetail>
   </div>;
 }
 
@@ -150,21 +149,17 @@ function CreativeCard({ ad, media, revision, workspaceId, adId }: { ad: AdView; 
   </article>;
 }
 
-function CreativeTools({ copy, media, textOnly, workspaceId, adId }: { textOnly?: boolean; copy?: string | null; media?: MediaView; workspaceId: string; adId: string }) {
+function CreativeTools({ copy, sourceUrl, media, textOnly, workspaceId, adId }: { sourceUrl?: string | null; textOnly?: boolean; copy?: string | null; media?: MediaView; workspaceId: string; adId: string }) {
   const { t, error } = useWorkspaceLocale();
-  const [copyState, setCopyState] = useState<'idle' | 'done' | 'failed'>('idle');
+  const { notify } = useToast();
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloadError, setDownloadError] = useState<unknown>(null);
   const downloadPending = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => setCopyState('idle'), [copy]);
   useEffect(() => setDownloadError(null), [media?.id]);
   const canDownload = media?.status === 'READY' && Boolean(mediaUrl(media.displayUrl));
-  return <><div className="ws-detail-creative-tools"><button type="button" className="text-button" disabled={!copy} onClick={async () => {
-    try { if (!navigator.clipboard?.writeText || !copy) throw new Error('CLIPBOARD_UNAVAILABLE'); await navigator.clipboard.writeText(copy); setCopyState('done'); }
-    catch { setCopyState('failed'); }
-  }}>{copyState === 'done' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{t(copyState === 'done' ? 'ads.detail.copied' : 'ads.detail.copyText')}</button>
+  return <><div className="ws-detail-creative-tools"><CopyButton value={copy} label={t('ads.detail.copyText')} successLabel={t('ads.detail.copied')} errorLabel={t('ads.detail.copyFailed')} />
     {!textOnly && <button type="button" className="text-button ws-detail-download" disabled={downloadBusy || !canDownload} title={!canDownload ? t('ads.detail.downloadUnavailable') : undefined} aria-label={t('ads.detail.download')} aria-busy={downloadBusy} onClick={async () => {
       if (downloadPending.current || !canDownload || !media) return;
       downloadPending.current = true; setDownloadBusy(true); setDownloadError(null);
@@ -173,11 +168,11 @@ function CreativeTools({ copy, media, textOnly, workspaceId, adId }: { textOnly?
         const url = mediaUrl(result.url);
         const expiresAt = new Date(result.expiresAt ?? '').valueOf();
         if (!url || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('MEDIA_DOWNLOAD_UNAVAILABLE');
-        if (mounted.current) window.location.assign(url);
-      } catch (reason) { if (mounted.current) setDownloadError(reason); }
+        if (mounted.current) { notify({id:`download:${media.id}`,type:'info',message:t('ui.downloadStarted')}); window.location.assign(url); }
+      } catch (reason) { if (mounted.current) { setDownloadError(reason); notify({id:`download:${media.id}`,type:'error',message:error(reason)}); } }
       finally { downloadPending.current = false; if (mounted.current) setDownloadBusy(false); }
     }}><Download size={16} aria-hidden="true" />{t(downloadBusy ? 'common.working' : 'ads.detail.download')}</button>}
-  </div>{copyState !== 'idle' && <p className={copyState === 'failed' ? 'inline-error ws-detail-copy-notice' : 'small-note ws-detail-copy-notice'} role="status">{t(copyState === 'done' ? 'ads.detail.copied' : 'ads.detail.copyFailed')}</p>}{downloadError !== null && <p className="inline-error ws-detail-copy-notice" role="alert">{error(downloadError)}</p>}</>;
+  </div>{sourceUrl && mediaUrl(sourceUrl) && <div className="ws-detail-source-copy"><CopyField value={mediaUrl(sourceUrl)} label={t('ui.copySource')} successLabel={t('ads.detail.copied')} errorLabel={t('ads.detail.copyFailed')} /></div>}{downloadError !== null && <p className="inline-error ws-detail-copy-notice" role="alert">{error(downloadError)}</p>}</>;
 }
 
 function RelatedAds({ workspaceId, adId, returnTo, unavailable, advertiserId, dataSourceKey, onRefreshDetail }: { workspaceId: string; adId: string; returnTo: string; unavailable: boolean; advertiserId: string | null; dataSourceKey: string | null; onRefreshDetail: () => void }) {

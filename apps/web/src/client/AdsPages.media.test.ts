@@ -98,6 +98,16 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.unstubAllGlobals(); });
 
 describe('media rendering from public DTOs', () => {
+  it('submits the same native region value after selecting an option through the keyboard dropdown', async () => {
+    await render(createElement(AdsPage));
+    const native = container.querySelector<HTMLSelectElement>('select[name="country"]')!;
+    const trigger = native.parentElement!.querySelector<HTMLButtonElement>('[role="combobox"]');
+    expect(trigger).not.toBeNull();
+    for (const key of ['ArrowDown', 'Home', 'ArrowDown', 'Enter']) await act(async () => { trigger!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })); });
+    expect(new FormData(native.form!).get('country')).toBe('AE');
+    expect(native.value).toBe('AE');
+  });
+
   it.each(['Facebook', 'Instagram', 'TikTok', 'Snapchat'])('renders the observed %s advertiser logo separately from the platform in results and detail', async platform => {
     const logo = 'https://cdn.example/observed-advertiser-logo.png';
     const branded = { ...ad, advertiserName: 'Observed Brand', advertiserAvatarUrl: logo, publisherPlatforms: [platform] };
