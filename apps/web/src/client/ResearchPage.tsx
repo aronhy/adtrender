@@ -25,7 +25,6 @@ function ResearchContent({ workspaceId }: { workspaceId: string }) {
   const [newFolder, setNewFolder] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<unknown>(null);
-  const [reload, setReload] = useState(0);
   const groupId = useId();
   const folderFormId = useId();
   const tabs = ['saved', 'analysis'] as const;
@@ -33,7 +32,7 @@ function ResearchContent({ workspaceId }: { workspaceId: string }) {
     <PageHeader eyebrow={workspace.name} title={t('research.title')} description={t('research.description')}
       action={<button className="button secondary" disabled={refreshing} onClick={async () => {
         setRefreshing(true); setRefreshError(null);
-        try { await refresh(); setReload(value => value + 1); }
+        try { await refresh(); }
         catch (reason) { setRefreshError(reason); }
         finally { setRefreshing(false); }
       }}><RefreshCw size={16} aria-hidden="true" />{t(refreshing ? 'research.refreshing' : 'research.refresh')}</button>} />
@@ -52,19 +51,18 @@ function ResearchContent({ workspaceId }: { workspaceId: string }) {
           </CommandForm>
         </div>}
       </>}
-      <ResearchResults key={`${workspaceId}:${tab}:${folderId}:${reload}`} workspaceId={workspaceId} kind={tab} folderId={tab === 'saved' ? folderId || undefined : undefined} />
+      <ResearchResults key={`${workspaceId}:${tab}:${folderId}`} workspaceId={workspaceId} kind={tab} folderId={tab === 'saved' ? folderId || undefined : undefined} />
     </div>
     <p className="ws-sharing-note">{t('research.sharingNote')}</p>
   </div>;
 }
 
 function ResearchResults({ workspaceId, kind, folderId }: { workspaceId: string; kind: 'saved' | 'analysis'; folderId?: string }) {
-  const { commandVersion } = useApp();
+  const { registerReadback } = useApp();
   const { t, error, href, locale } = useWorkspaceLocale();
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
   const query = useQuery(getResearchPage, { workspaceId, kind, folderId, cursor: cursors.at(-1), limit: 20 });
-  const previousCommandVersion = useRef(commandVersion);
-  useEffect(() => { if (previousCommandVersion.current !== commandVersion) { previousCommandVersion.current = commandVersion; void query.refetch(); } }, [commandVersion, query.refetch]);
+  useEffect(() => registerReadback?.(query.refetch), [registerReadback, query.refetch]);
   const data = query.data as ResearchPageResult | undefined;
   if (query.isLoading) return <Loading label={t('research.loading')} />;
   if (query.error || !data) return <Empty title={t('research.loadError')} action={<button className="button secondary" onClick={() => void query.refetch()}>{t('research.retry')}</button>}>{error(query.error)}</Empty>;

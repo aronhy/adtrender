@@ -1,7 +1,8 @@
+import { SidebarTooltip } from './ui/SidebarTooltip';
 import { ToastProvider, ToastViewport, useToast } from './ui/Toast';
 import {landingPageUrl} from './ad-links';
 import { Brand } from './brand/Brand';
-import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { logout, useAuth } from 'wasp/client/auth';
 import { appCommand, getAppState, useQuery } from 'wasp/client/operations';
@@ -18,7 +19,7 @@ import { appSurface } from './app-surface';
 import { SurfaceBoundary } from './SurfaceBoundary';
 import { AdminShell } from './AdminShell';
 
-type AppContextValue = { state: AppState; commandVersion: number; refresh: () => Promise<unknown>; run: (command: AppCommand) => Promise<CommandResult> };
+type AppContextValue = { registerReadback?: (refresh: () => Promise<unknown>) => () => void; state: AppState; commandVersion: number; refresh: () => Promise<unknown>; run: (command: AppCommand) => Promise<CommandResult> };
 const AppContext = createContext<AppContextValue | null>(null);
 export function useApp() {
   const context = useContext(AppContext);
@@ -116,12 +117,18 @@ function WorkspaceContent() {
   const workspaceId = params.get('workspace') || undefined;
   const organizationId = params.get('organization') || undefined;
   const query = useQuery(getAppState, { workspaceId, organizationId }); const state = query.data as AppState | undefined;
-  const [menuOpen, setMenuOpen] = useState(false); const { notify } = useToast();
+  const [menuOpen, setMenuOpen] = useState(false); const { notify, dismiss } = useToast();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('adthrender.workspace.sidebarCollapsed') === 'true'; }
     catch { return false; }
   });
   const [commandVersion, setCommandVersion] = useState(0);
+  const readbacks = useRef(new Set<() => Promise<unknown>>());
+  const registerReadback = useCallback((refresh: () => Promise<unknown>) => { readbacks.current.add(refresh); return () => { readbacks.current.delete(refresh); }; }, []);
+  const refreshReadbacks = async () => {
+    const results = await Promise.allSettled([query.refetch, ...readbacks.current].map(refresh => Promise.resolve().then(() => refresh())));
+    return results.every(result => result.status === 'fulfilled' && !(result.value as { isError?: boolean; error?: unknown } | undefined)?.isError && !(result.value as { error?: unknown } | undefined)?.error);
+  };
   const commandScope = workspaceId ?? organizationId ?? 'setup';
   const liveCommandScope = useRef(commandScope); liveCommandScope.current = commandScope;
   const menuRef = useRef<HTMLElement>(null);
@@ -167,10 +174,7 @@ function WorkspaceContent() {
     setCommandVersion(version => version + 1);
     const message = t(command.type === 'SAVE_AD' ? 'ui.saved' : command.type === 'SAVE_NOTE' ? 'ui.noteSaved' : commandNoticeKey(command.type));
     let refreshFailed = false;
-    const refresh = async () => {
-      try { const latest = await query.refetch(); if (latest.isError || latest.error) refreshFailed = true; }
-      catch { refreshFailed = true; }
-    };
+    const refresh = async () => { refreshFailed = !await refreshReadbacks(); };
     if (result && Object.hasOwn(result, 'workspaceId')) {
       const nextWorkspaceId = result.workspaceId ?? undefined;
       const nextOrganizationId = nextWorkspaceId ? undefined : result.organizationId;
@@ -179,7 +183,7 @@ function WorkspaceContent() {
       if (workspaceId === nextWorkspaceId && organizationId === nextOrganizationId) await refresh();
     } else await refresh();
     if (liveCommandScope.current !== startedScope) return result ?? {};
-    notify(refreshFailed ? {id:noticeId,type:'info',message:t('ui.refreshFailed'),action:{label:t('ui.refresh'),run:async()=>{await query.refetch();}}} : {id:noticeId,type:'success',message});
+    notify(refreshFailed ? {id:noticeId,type:'info',message:t('ui.refreshFailed'),action:{label:t('ui.refresh'),run:async()=>{if(await refreshReadbacks())dismiss(noticeId);}}} : {id:noticeId,type:'success',message});
     if (result?.redirectUrl) {
       const target = new URL(result.redirectUrl, window.location.origin);
       if (target.protocol === 'https:' || target.origin === window.location.origin) window.location.assign(target.href);
@@ -203,12 +207,12 @@ function WorkspaceContent() {
       <div className="workspace-sidebar-brand" onClick={() => setMenuOpen(false)}><Brand to={contextHref('/app')} /><button className="icon-button sidebar-close" aria-label={t('nav.close')} onClick={() => setMenuOpen(false)}><X size={20} /></button></div>
       <div className="workspace-switch"><label htmlFor="workspace-select">{t('nav.workspace')}</label><select id="workspace-select" value={selected?.id ?? ''} disabled={!state?.workspaces.length} onChange={event => switchWorkspace(event.target.value)}><option value="" disabled>{t('nav.noWorkspace')}</option>{state?.workspaces.map(workspace => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select>{state && state.role !== 'NONE' && <Status value={state.role} />}</div>
       <button type="button" className="sidebar-collapse" aria-label={t(sidebarCollapsed ? 'nav.expandSidebar' : 'nav.collapseSidebar')} title={t(sidebarCollapsed ? 'nav.expandSidebar' : 'nav.collapseSidebar')} aria-expanded={!sidebarCollapsed} aria-controls="workspace-navigation" onClick={() => setSidebarCollapsed(value => !value)}>{sidebarCollapsed ? <PanelLeftOpen size={19} aria-hidden="true" /> : <PanelLeftClose size={19} aria-hidden="true" />}<span>{t('nav.collapseSidebar')}</span></button>
-      <nav aria-label={t('nav.label')}>{navigation.map(([path, key, Icon]) => <NavLink key={path} to={contextHref(path)} onClick={() => setMenuOpen(false)} aria-label={t(key)} title={t(key)}><Icon size={19} aria-hidden="true" /><span className="sidebar-link-label">{t(key)}</span></NavLink>)}</nav>
-      <div className="sidebar-bottom"><Link to={href('/help')} className="support-link" aria-label={t('nav.help')} title={t('nav.help')}><CircleHelp size={19} aria-hidden="true" /><span className="sidebar-link-label">{t('nav.help')}</span></Link>{state && <div className="account-line"><span className="avatar" aria-hidden="true">{(state.user.displayName || state.user.email).slice(0, 1).toUpperCase()}</span><div><strong>{state.user.displayName || t('nav.account')}</strong><small>{state.user.email}</small></div><button onClick={() => void logout()} className="icon-button workspace-signout" aria-label={t('nav.signOut')} title={t('nav.signOut')}><LogOut size={17} aria-hidden="true" /></button></div>}</div>
+      <nav aria-label={t('nav.label')}>{navigation.map(([path, key, Icon]) => <SidebarTooltip key={path} label={t(key)} enabled={sidebarCollapsed}><NavLink to={contextHref(path)} onClick={() => setMenuOpen(false)} aria-label={t(key)} title={t(key)}><Icon size={19} aria-hidden="true" /><span className="sidebar-link-label">{t(key)}</span></NavLink></SidebarTooltip>)}</nav>
+      <div className="sidebar-bottom"><SidebarTooltip label={t('nav.help')} enabled={sidebarCollapsed}><Link to={href('/help')} className="support-link" aria-label={t('nav.help')} title={t('nav.help')}><CircleHelp size={19} aria-hidden="true" /><span className="sidebar-link-label">{t('nav.help')}</span></Link></SidebarTooltip>{state && <div className="account-line"><span className="avatar" aria-hidden="true">{(state.user.displayName || state.user.email).slice(0, 1).toUpperCase()}</span><div><strong>{state.user.displayName || t('nav.account')}</strong><small>{state.user.email}</small></div><button onClick={() => void logout()} className="icon-button workspace-signout" aria-label={t('nav.signOut')} title={t('nav.signOut')}><LogOut size={17} aria-hidden="true" /></button></div>}</div>
     </aside>
     <main className="workspace-main" id="main-content" tabIndex={-1} inert={menuOpen || undefined}><div className="workspace-topline"><div className="workspace-context"><div><span>{state?.organizations.find(org => org.id === (selected?.organizationId ?? state?.billing?.organizationId))?.name ?? t('nav.start')}</span><span className="workspace-breadcrumb"> / {currentTitle}</span></div><select className="workspace-topline-switch" aria-label={t('nav.workspace')} title={t('nav.workspace')} value={selected?.id ?? ''} disabled={!state?.workspaces.length} onChange={event => switchWorkspace(event.target.value)}><option value="" disabled>{t('nav.noWorkspace')}</option>{state?.workspaces.map(workspace => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select></div><WorkspaceLanguagePicker /></div>
 
-      {query.isLoading ? <Loading label={t('common.workspaceLoading')} /> : query.error || !state ? <Empty title={t('common.workspaceError')} action={<button className="button secondary" onClick={() => void query.refetch()}>{t('common.reconnect')}</button>}>{query.error ? describeError(query.error) : t('common.workspaceErrorBody')}</Empty> : <AppContext.Provider key={`${selected?.id ?? 'new'}:${location.pathname.startsWith('/app/admin') ? 'admin' : 'app'}`} value={{ state, commandVersion, run, refresh: query.refetch }}><Outlet /></AppContext.Provider>}
+      {query.isLoading ? <Loading label={t('common.workspaceLoading')} /> : query.error || !state ? <Empty title={t('common.workspaceError')} action={<button className="button secondary" onClick={() => void query.refetch()}>{t('common.reconnect')}</button>}>{query.error ? describeError(query.error) : t('common.workspaceErrorBody')}</Empty> : <AppContext.Provider key={`${selected?.id ?? 'new'}:${location.pathname.startsWith('/app/admin') ? 'admin' : 'app'}`} value={{ state, commandVersion, run, registerReadback, refresh: async () => { if (!await refreshReadbacks()) throw new Error('LIST_REFRESH_FAILED'); } }}><Outlet /></AppContext.Provider>}
     </main><ToastViewport /></div>;
 }
 function AdminLayout() {

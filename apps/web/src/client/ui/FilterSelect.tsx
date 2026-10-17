@@ -163,6 +163,8 @@ export function FilterSelect({
       return;
     }
     if (event.key === 'Tab') {
+      if (open && popup.current?.contains(event.target as Node))
+        trigger.current?.focus();
       setOpen(false);
       setSearch('');
       return;

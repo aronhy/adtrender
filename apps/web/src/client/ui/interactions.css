@@ -468,40 +468,33 @@
     opacity 0.12s ease,
     transform 0.16s ease;
 }
-.workspace-shell.workspace-collapsed .sidebar-link-label {
-  opacity: 0;
-  transform: translateX(-5px);
+@media (min-width: 961px) {
+  .workspace-shell.workspace-collapsed .sidebar-link-label {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
 }
-.workspace-shell.workspace-collapsed .sidebar nav a {
-  position: relative;
+.ui-sidebar-nav-item {
+  display: contents;
 }
-.workspace-shell.workspace-collapsed .sidebar nav a:after {
-  content: attr(aria-label);
-  position: absolute;
-  left: calc(100% + 12px);
-  top: 50%;
-  transform: translateY(-50%) translateX(-3px);
+.ui-sidebar-tooltip {
+  position: fixed;
+  transform: translateY(-50%);
+  z-index: 160;
   padding: 7px 10px;
   border-radius: 7px;
-  background: var(--surface-inverse);
-  color: var(--ink-on-inverse);
+  background: var(--surface-inverse, #241e19);
+  color: var(--ink-on-inverse, #fff);
   font-size: 12px;
   line-height: 1.5;
   white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
   pointer-events: none;
-  transition:
-    opacity 0.12s,
-    transform 0.12s;
-  z-index: 90;
   box-shadow: var(--shadow-md);
 }
-.workspace-shell.workspace-collapsed .sidebar nav a:hover:after,
-.workspace-shell.workspace-collapsed .sidebar nav a:focus-visible:after {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(-50%);
+@media (max-width: 960px) {
+  .ui-sidebar-tooltip {
+    display: none;
+  }
 }
 .ui-toast-viewport {
   position: fixed;

@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdDetailResult, AdView, AppState, MediaView, ResearchPageResult, SearchResult } from './types';
+import { ToastProvider, ToastViewport } from './ui/Toast';
 import { WorkspaceLocaleProvider } from './workspace-i18n/locale';
 import { translate } from './workspace-i18n/messages';
 import type { Locale } from './landing/messages';
@@ -15,6 +16,7 @@ const fixture = vi.hoisted(() => ({
   research: null as ResearchPageResult | null,
   related: { ads: [], total: 0, nextCursor: null, asOf: '2026-10-08T00:00:00Z', anchorIdentity: null } as import('./types').RelatedAdsResult,
   history: { timezone: 'Asia/Shanghai', asOf: '2026-10-08T00:00:00Z', from: '2026-10-01', to: '2026-10-08', scopes: [], days: [], events: [], nextEventCursor: null, projectionPending: false, summary: { observedDays: 0, activeObservedDays: 0, conflictDays: 0, firstObservedAt: null, lastObservedAt: null, sourceStartedAt: null, sourceEndedAt: null, sourceDateSpanDays: null, spanEndAt: null, spanBasis: null, scope: 'selected-window' } },
+  refresh: vi.fn(),
   download: vi.fn(),
   recover: vi.fn(),
   revision: 1,
@@ -28,13 +30,13 @@ vi.mock('wasp/client/operations', () => ({
   }),
 }));
 vi.mock('./App', () => ({
-  useApp: () => ({ state: fixture.state, refresh: async () => undefined, commandVersion: 0 }),
+  useApp: () => ({ state: fixture.state, refresh: fixture.refresh, commandVersion: 0 }),
   canEdit: () => true,
   workspaceHref: (path: string, workspaceId: string) => `${path}?workspace=${workspaceId}`,
   formText: (data: FormData, key: string) => String(data.get(key) ?? '').trim(),
   track: vi.fn(),
   Field: ({ label, children }: { label: string; children: ReactNode }) => createElement('label', null, label, children),
-  PageHeader: ({ title }: { title: string }) => createElement('h1', null, title),
+  PageHeader: ({ title, action }: { title: string; action?:ReactNode }) => createElement('header', null, createElement('h1',null,title),action),
   Status: ({ value }: { value?: string }) => createElement('span', null, value),
   SourceLink: ({ children }: { children: ReactNode }) => createElement('span', null, children),
   CommandForm: ({ children }: { children: ReactNode }) => createElement('form', null, children),
@@ -57,9 +59,9 @@ let container: HTMLDivElement;
 let root: Root;
 function app(node: ReactNode, locale: Locale = 'en', path = '/app/ads') {
   return createElement(MemoryRouter, { key: `${locale}:${path}`, initialEntries: [`${path}?workspace=workspace&lang=${locale}`] },
-    createElement(WorkspaceLocaleProvider, null, createElement(Routes, null,
+    createElement(WorkspaceLocaleProvider, null, createElement(ToastProvider,{scope:'workspace'},createElement(ToastViewport),createElement(Routes, null,
       createElement(Route, { path: '/app/ads/:adId', element: node }),
-      createElement(Route, { path: '*', element: node }))));
+      createElement(Route, { path: '*', element: node })))));
 }
 async function render(node: ReactNode, locale: Locale = 'en', path = '/app/ads') {
   await act(async () => root.render(app(node, locale, path)));
@@ -73,6 +75,7 @@ beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   localStorage.clear();
+  fixture.refresh.mockReset().mockResolvedValue(undefined);
   fixture.refetch.mockReset().mockResolvedValue({ isSuccess: true });
   fixture.download.mockReset().mockResolvedValue({ url: 'http://unsafe.example.test/creative', expiresAt: new Date(Date.now() + 60000).toISOString() });
   fixture.revision = 1;
@@ -480,5 +483,22 @@ describe('format-aware library presentation',()=>{
   await render(createElement(AdsPage));
   expect(container.querySelector('.ad-card-original-preview img')).not.toBeNull();
   expect(container.querySelector('.ad-card')?.textContent).toContain('Original preview');
+ });
+});
+
+describe('real page notification retries',()=>{
+ it('keeps both a download failure and the next successful initiation visible',async()=>{
+  fixture.detail!.ad.media=[image];fixture.detail!.media=[image];await render(createElement(AdDetailPage),'en','/app/ads/ad');
+  await dispatch(container.querySelector('.ws-detail-download')!,'click');expect(container.querySelector('.ui-toast-error')).not.toBeNull();
+  fixture.download.mockResolvedValue({url:'https://media.example.test/download',expiresAt:new Date(Date.now()+60000).toISOString()});await dispatch(container.querySelector('.ws-detail-download')!,'click');
+  expect(container.querySelector('.ui-toast-info')).not.toBeNull();expect(container.querySelectorAll('[data-toast-id]')).toHaveLength(2);
+ });
+ it.each(['SUCCEEDED','FAILED'])('observes an analysis terminal state through explicit page refresh: %s',async status=>{
+  fixture.research!.analyses[0].status='RUNNING';fixture.research!.analyses[0].result=undefined;await render(createElement(ResearchPage));
+  await act(async()=>{container.querySelectorAll<HTMLButtonElement>('[role="tab"]')[1].click();});
+  expect(container.querySelector('[data-toast-id]')).toBeNull();let resolve!:()=>void;fixture.refresh.mockImplementation(()=>new Promise<void>(done=>{resolve=done;}));
+  await act(async()=>{Array.from(container.querySelectorAll('button')).find(n=>n.textContent?.includes('Refresh'))!.click();});
+  await act(async()=>{fixture.research={...fixture.research!,analyses:[{...fixture.research!.analyses[0],status}]};resolve();});
+  expect(container.querySelector(`[data-toast-id="analysis:analysis:${status}"]`)).not.toBeNull();
  });
 });

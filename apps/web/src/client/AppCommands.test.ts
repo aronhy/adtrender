@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement as h } from 'react';
+import { act, createElement as h, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import {
   MemoryRouter,
@@ -9,7 +9,11 @@ import {
   useNavigate,
 } from 'react-router';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const fixture = vi.hoisted(() => ({ command: vi.fn(), refetch: vi.fn() }));
+const fixture = vi.hoisted(() => ({
+  command: vi.fn(),
+  refetch: vi.fn(),
+  business: vi.fn(),
+}));
 vi.mock('wasp/client/auth', () => ({
   logout: vi.fn(),
   useAuth: () => ({ data: { id: 'test' }, isLoading: false }),
@@ -47,9 +51,10 @@ function state(id: string) {
 }
 let root: Root, host: HTMLDivElement;
 function Probe() {
-  const { run } = useApp(),
+  const { run, registerReadback } = useApp(),
     navigate = useNavigate(),
     location = useLocation();
+  useEffect(() => registerReadback?.(fixture.business), [registerReadback]);
   return h(
     'section',
     null,
@@ -84,6 +89,7 @@ async function click(text: string) {
 beforeEach(async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   fixture.command.mockReset();
+  fixture.business.mockReset().mockResolvedValue({});
   fixture.refetch.mockReset().mockResolvedValue({});
   localStorage.clear();
   host = document.createElement('div');
@@ -139,4 +145,21 @@ it('reports an accepted mutation with failed readback separately from command fa
   );
   expect(host.querySelector('.ui-toast-error')).toBeNull();
   expect(host.querySelector('.ui-toast-action')).not.toBeNull();
+});
+
+it('reports actual list readback failure and its refresh action retries that list', async () => {
+  fixture.command.mockResolvedValue({});
+  fixture.business.mockResolvedValue({
+    isError: true,
+    error: new Error('list offline'),
+  });
+  await click('Save');
+  expect(host.querySelector('.ui-toast-info')).not.toBeNull();
+  expect(fixture.business).toHaveBeenCalledTimes(1);
+  fixture.business.mockResolvedValue({});
+  await act(async () => {
+    host.querySelector<HTMLButtonElement>('.ui-toast-action')!.click();
+  });
+  expect(fixture.business).toHaveBeenCalledTimes(2);
+  expect(host.querySelector('.ui-toast-info')).toBeNull();
 });

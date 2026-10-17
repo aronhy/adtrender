@@ -163,13 +163,14 @@ function CreativeTools({ copy, sourceUrl, media, textOnly, workspaceId, adId }: 
     {!textOnly && <button type="button" className="text-button ws-detail-download" disabled={downloadBusy || !canDownload} title={!canDownload ? t('ads.detail.downloadUnavailable') : undefined} aria-label={t('ads.detail.download')} aria-busy={downloadBusy} onClick={async () => {
       if (downloadPending.current || !canDownload || !media) return;
       downloadPending.current = true; setDownloadBusy(true); setDownloadError(null);
+      const operationId = `download:${media.id}:${crypto.randomUUID()}`;
       try {
         const result = await getPublicAdMediaDownload({ workspaceId, adId, mediaId: media.id });
         const url = mediaUrl(result.url);
         const expiresAt = new Date(result.expiresAt ?? '').valueOf();
         if (!url || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('MEDIA_DOWNLOAD_UNAVAILABLE');
-        if (mounted.current) { notify({id:`download:${media.id}`,type:'info',message:t('ui.downloadStarted')}); window.location.assign(url); }
-      } catch (reason) { if (mounted.current) { setDownloadError(reason); notify({id:`download:${media.id}`,type:'error',message:error(reason)}); } }
+        if (mounted.current) { notify({id:operationId,type:'info',message:t('ui.downloadStarted')}); window.location.assign(url); }
+      } catch (reason) { if (mounted.current) { setDownloadError(reason); notify({id:operationId,type:'error',message:error(reason)}); } }
       finally { downloadPending.current = false; if (mounted.current) setDownloadBusy(false); }
     }}><Download size={16} aria-hidden="true" />{t(downloadBusy ? 'common.working' : 'ads.detail.download')}</button>}
   </div>{sourceUrl && mediaUrl(sourceUrl) && <div className="ws-detail-source-copy"><CopyField value={mediaUrl(sourceUrl)} label={t('ui.copySource')} successLabel={t('ads.detail.copied')} errorLabel={t('ads.detail.copyFailed')} /></div>}{downloadError !== null && <p className="inline-error ws-detail-copy-notice" role="alert">{error(downloadError)}</p>}</>;

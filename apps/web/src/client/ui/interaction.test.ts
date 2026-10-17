@@ -191,6 +191,45 @@ describe('form-compatible filter dropdown', () => {
   });
 });
 
+describe('search dropdown tab order', () => {
+  it.each([false, true])(
+    'restores its form position before Tab navigation (reverse=%s)',
+    async (reverse) => {
+      await render(
+        h(
+          'form',
+          null,
+          h('input', { 'aria-label': 'Before' }),
+          h(
+            FilterSelect,
+            { 'aria-label': 'Country' },
+            ...Array.from({ length: 10 }, (_, i) =>
+              h('option', { value: String(i), key: i }, 'Option ' + i)
+            )
+          ),
+          h('input', { 'aria-label': 'After' })
+        )
+      );
+      const trigger =
+        host.querySelector<HTMLButtonElement>('[role="combobox"]')!;
+      await click(trigger);
+      const search =
+        document.querySelector<HTMLInputElement>('[role="searchbox"]')!;
+      expect(document.activeElement).toBe(search);
+      await act(async () => {
+        search.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Tab',
+            shiftKey: reverse,
+            bubbles: true,
+          })
+        );
+      });
+      expect(document.activeElement).toBe(trigger);
+      expect(document.querySelector('[role="searchbox"]')).toBeNull();
+    }
+  );
+});
 describe('controlled dropdown consistency', () => {
   it('restores the accepted value if the parent rejects a selection', async () => {
     const onChange = vi.fn();
@@ -370,7 +409,9 @@ describe('scoped notification queue', () => {
     await act(async () => {
       vi.advanceTimersByTime(6000);
     });
-    expect(document.querySelector('[data-toast-expanded="true"]')).not.toBeNull();
+    expect(
+      document.querySelector('[data-toast-expanded="true"]')
+    ).not.toBeNull();
     expect(document.querySelector('[data-toast-id="saved"]')).not.toBeNull();
     await act(async () => {
       dismiss.blur();
