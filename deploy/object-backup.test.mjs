@@ -12,13 +12,14 @@ const targetIdentity = { bucket: 'saas-restore-fixture', endpoint: 'http://127.0
 function store(initial = new Map()) {
   const objects = new Map(initial), writes = [];
   return { objects, writes,
-    async get(key) { const item = objects.get(key); if (!item) throw new Error('PRIVATE_PROVIDER_BODY_NOT_FOUND'); return { body: Buffer.from(item.bytes), contentType: item.contentType }; },
+    async get(key) { const item = objects.get(key); if (!item) throw Object.assign(new Error('PRIVATE_PROVIDER_BODY_NOT_FOUND'), { $metadata: { httpStatusCode: 404 } }); return { body: Buffer.from(item.bytes), contentType: item.contentType }; },
     async put(key, input, options) {
       assert.equal(options.ifNoneMatch, '*');
-      if (objects.has(key)) throw new Error('PRIVATE_PROVIDER_PRECONDITION');
+      if (objects.has(key)) throw Object.assign(new Error('PRIVATE_PROVIDER_PRECONDITION'), { $metadata: { httpStatusCode: 412 } });
       const chunks = []; for await (const chunk of Buffer.isBuffer(input) || input instanceof Uint8Array ? [input] : input) chunks.push(Buffer.from(chunk));
-      writes.push(key); objects.set(key, { bytes: Buffer.concat(chunks), contentType: options.contentType });
+      if (!key.startsWith('.adtrender-restore-probe/')) writes.push(key); objects.set(key, { bytes: Buffer.concat(chunks), contentType: options.contentType });
     },
+    async delete(key) { assert(key.startsWith('.adtrender-restore-probe/')); objects.delete(key); },
     async list(limit) { return [...objects.keys()].slice(0, limit + 1); },
   };
 }
@@ -103,7 +104,7 @@ test('refuses source bucket, non-restore bucket, nonempty unowned target and unv
 });
 test('a failed restore remains resumable but never overwrites conflicting target bytes', async t => {
   const f = await fixture(t); await f.backup(); const put = f.targetStore.put; let calls = 0;
-  f.targetStore.put = async (...args) => { if (++calls === 2) throw new Error('PRIVATE_PROVIDER_TOKEN'); return put(...args); };
+  f.targetStore.put = async (...args) => { if (!args[0].startsWith('.adtrender-restore-probe/') && ++calls === 2) throw new Error('PRIVATE_PROVIDER_TOKEN'); return put(...args); };
   await assert.rejects(f.restore(), error => !error.message.includes('PRIVATE_PROVIDER'));
   assert.equal(f.targetStore.writes.length, 1); f.targetStore.put = put;
   assert.equal((await f.restore()).status, 'JOINT_RESTORE_VERIFIED'); assert.equal(f.targetStore.writes.length, 3);

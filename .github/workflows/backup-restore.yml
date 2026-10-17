@@ -1,0 +1,73 @@
+name: Backup restore safety
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'fix/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restore:
+    name: Conditional writes and real Garage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SAAS_BACKUP_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:55438/adtrender_test_ci
+      TEST_POSTGRES_CONTAINER: adtrender-backup-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+      PG_BIN: /usr/lib/postgresql/15/bin
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.14.1
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked SDK dependencies
+        run: npm ci --prefix apps/web --no-audit
+      - name: Check archive and SDK failure boundaries
+        run: |
+          node --check scripts/object-backup.mjs
+          node --test deploy/object-backup.test.mjs deploy/object-backup-boundaries.test.mjs deploy/object-backup-protocol.test.mjs
+      - name: Install matching PostgreSQL client
+        # Ubuntu 24.04 defaults to PostgreSQL 16; use the official PGDG repository.
+        # https://www.postgresql.org/download/linux/ubuntu/
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/adtrender-pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-15
+          "$PG_BIN/pg_dump" --version
+      - name: Start isolated loopback PostgreSQL
+        env:
+          POSTGRES_DB: adtrender_test_ci
+          POSTGRES_USER: adtrender
+          POSTGRES_PASSWORD: ci-only-password
+        run: |
+          docker run --detach --name "$TEST_POSTGRES_CONTAINER" --network host \
+            --env POSTGRES_DB --env POSTGRES_USER --env POSTGRES_PASSWORD \
+            postgres:15.17-bookworm postgres -c listen_addresses=127.0.0.1 -c port=55438
+          for attempt in $(seq 1 60); do
+            if "$PG_BIN/pg_isready" -h 127.0.0.1 -p 55438 -U adtrender -d adtrender_test_ci; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Verify real PostgreSQL restore and Garage rejection
+        run: node deploy/backup/run-garage-rehearsal.mjs
+      - name: Remove isolated PostgreSQL
+        if: always()
+        run: |
+          if docker container inspect "$TEST_POSTGRES_CONTAINER" > /dev/null 2>&1; then
+            docker rm --force --volumes "$TEST_POSTGRES_CONTAINER"
+          fi
