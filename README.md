@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://adtrender.com" target="_blank">
-    <img alt="AdTrender" src="apps/web/public/adthrender-mark.svg" width="96" />
+    <img alt="AdTrender" src="apps/web/public/favicon.svg" width="96" />
   </a>
 </p>
 
