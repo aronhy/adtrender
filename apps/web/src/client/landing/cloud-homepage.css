@@ -1,0 +1,8 @@
+/* Preserve the existing hero treatment when the earlier Cloud homepage's
+   transparent navigation becomes sticky. Keep an opaque canvas so content
+   underneath the navigation cannot compromise its contrast. */
+.adthrender-home .pp-navbar,
+.adthrender-home .pp-navbar.has-shadow {
+  background: #fff4eb url('/homepage-assets/images/home/pipiads_background.webp') no-repeat center top / 100% auto !important;
+  background-blend-mode: luminosity;
+}

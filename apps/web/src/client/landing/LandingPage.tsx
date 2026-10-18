@@ -1,3 +1,4 @@
+import { PolarFooter } from './PolarFooter';
 import { Brand as BrandIdentity } from '../brand/Brand';
 import { LocaleProvider, useLocale, LanguagePicker } from './locale';
 import { useState, type CSSProperties } from 'react';
@@ -33,7 +34,7 @@ function Library({ compact = false }: {
     return <div className={`lp-library ${compact ? 'lp-compact' : ''}`}><div className="lp-window"><span><i /><i /><i /></span><b>{t("library.title")}</b><small>{t("demo.interface")}</small></div><div className="lp-library-body"><div className="lp-demo-search"><Search size={16}/><span>{t("library.search")}</span><span className="lp-key">⌘ K</span></div><div className="lp-filter" aria-label={t("filter.label")}>{[t("filter.all"), t("filter.lifestyle"), t("filter.fashion")].map((label, index) => <button key={index} className={category === index ? 'active' : ''} onClick={() => setCategory(index)} aria-pressed={category === index}>{label}</button>)}<span>{t("demo.type")}</span></div><div className="lp-ad-grid">{indices.map(index => <AdCard index={index} key={index}/>)}</div></div></div>;
 }
 function LandingContent() {
-    const { t } = useLocale();
+    const { t, locale, setLocale } = useLocale();
     const faqs = [
         [t("faq.start.q"), t("faq.start.a")],
         [t("faq.results.q"), t("faq.results.a")],
@@ -56,7 +57,7 @@ function LandingContent() {
     <section className="lp-section" id="how"><div className="lp-wrap"><div className="lp-center"><p className="lp-label">{t("workflow.label")}</p><h2>{t("workflow.title")}</h2><p>{t("workflow.body")}</p></div><div className="lp-steps">{[[Search, t("workflow.search"), t("workflow.searchBody")], [Layers, t("workflow.analyze"), t("workflow.analyzeBody")], [Bookmark, t("workflow.save"), t("workflow.saveBody")], [Users, t("workflow.team"), t("workflow.teamBody")]].map(([Icon, title, desc], i) => { const StepIcon = Icon as typeof Search; return <article key={i}><span className="lp-step-number">0{i + 1}</span><StepIcon size={25}/><h3>{title as string}</h3><p>{desc as string}</p></article>; })}</div></div></section>
     <section className="lp-section lp-faq" id="faq"><div className="lp-wrap lp-faq-grid"><div><p className="lp-label">{t("faq.label")}</p><h2>{t("faq.title")}</h2><Link className="lp-text-link" to="/help">{t("faq.cta")}<ArrowUpRight size={17}/></Link></div><div>{faqs.map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={18}/></summary><p>{answer}</p></details>)}</div></div></section>
     <section className="lp-final"><div className="lp-wrap lp-center"><p className="lp-label">{t("final.label")}</p><h2>{t("final.title")}<br />{t("final.middle")}<span>{t("final.accent")}</span></h2><p>{t("final.body")}<br />{t("final.outcome")}</p><div className="lp-actions"><CTA /><Link className="lp-button lp-secondary" to="/login">{t("cta.login")}<ArrowRight size={17}/></Link></div><small>{t("final.access")}</small></div></section></main>
-    <footer className="lp-footer"><div className="lp-wrap"><div className="lp-footer-top"><div><Brand /><p>{t("footer.tagline")}</p></div><nav aria-label={t("a11y.footer")}><a href="#explore">{t("nav.explore")}</a><Link to="/pricing">{t("nav.pricing")}</Link><Link to="/help">{t("footer.help")}</Link><Link to="/terms">{t("footer.terms")}</Link><Link to="/privacy">{t("footer.privacy")}</Link></nav></div><div className="lp-footer-bottom"><span>© {new Date().getFullYear()}{t("brand.name")}</span><span>{t("footer.demo")}</span><a href="#main">{t("footer.top")}</a></div></div></footer>
+    <PolarFooter locale={locale} onLocaleChange={setLocale} />
   </div>;
 }
 
