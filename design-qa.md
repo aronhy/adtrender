@@ -36,3 +36,7 @@ node scripts/build-polar-footer.mjs --output /tmp/adtrender-footer-artifact
 ```
 
 The new output directory must not exist. The manifest records the source commit, dirty status, entry paths and SHA256 of every published file. Production activation is a separately guarded footer-only HTML update with backup; the build does not deploy anything.
+
+## Bottom-edge regression (2026-10-18)
+
+The production footer and every ancestor ended at the same document boundary (zero layout gap), but the HTML canvas was white and BODY transparent. Native bottom overscroll and fractional-pixel rounding could therefore expose a white strip. The homepage now gives both root surfaces the footer's #1a1613 background, using `:has(.polar-footer)` so other routes retain their existing background. Browser checks confirm matching HTML/BODY canvas colors at desktop and mobile widths and zero extra space below the footer.
