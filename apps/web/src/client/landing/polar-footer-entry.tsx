@@ -1,3 +1,4 @@
+import './cloud-homepage.css';
 import { createRoot, type Root } from 'react-dom/client';
 import { PolarFooter } from './PolarFooter';
 import { isLocale, localeStorageKey, resolveLocale, type Locale } from './messages';

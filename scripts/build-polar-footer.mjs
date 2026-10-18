@@ -19,6 +19,7 @@ await build({
   entryNames: '[name]-[hash]',
   bundle: true, format: 'esm', platform: 'browser', target: ['es2022'], jsx: 'automatic',
   minify: true, sourcemap: false, legalComments: 'eof',
+  external: ['/homepage-assets/*'],
   define: { 'process.env.NODE_ENV': '"production"' },
 });
 const publicDir = join(repo, 'apps/web/public');

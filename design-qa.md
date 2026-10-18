@@ -40,3 +40,7 @@ The new output directory must not exist. The manifest records the source commit,
 ## Bottom-edge regression (2026-10-18)
 
 The production footer and every ancestor ended at the same document boundary (zero layout gap), but the HTML canvas was white and BODY transparent. Native bottom overscroll and fractional-pixel rounding could therefore expose a white strip. The homepage now gives both root surfaces the footer's #1a1613 background, using `:has(.polar-footer)` so other routes retain their existing background. Browser checks confirm matching HTML/BODY canvas colors at desktop and mobile widths and zero extra space below the footer.
+
+## Sticky navigation background (2026-10-18)
+
+The earlier Cloud homepage switched its transparent header to forced white when `.has-shadow` was added on scroll. Its isolated compatibility stylesheet now uses the existing hero background asset, #fff4eb canvas and luminosity blend in both states. An opaque background keeps content below the sticky header from showing through. Local browser comparison confirmed identical computed backgrounds before/after scrolling, sticky top=0, and working mobile menu open/close at 390 px. Native LandingPage and other routes do not match these compatibility selectors.
