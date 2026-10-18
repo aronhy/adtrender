@@ -1,0 +1,33 @@
+.polar-footer{position:relative;isolation:isolate;box-sizing:border-box;width:100%;overflow:visible;background:#1a1613;color:#faf7f4;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.5;text-align:left}
+.polar-footer *,.polar-footer *::before,.polar-footer *::after{box-sizing:border-box}
+.polar-footer a{color:inherit;text-decoration:none;transition:color .15s ease}
+.polar-footer a:hover{color:#ff9354}
+.polar-footer a:focus-visible,.polar-footer button:focus-visible{outline:2px solid #ffb184;outline-offset:5px}
+.polar-footer__content{position:relative;z-index:1;width:calc(100% - clamp(48px,13.2vw,220px));max-width:1452px;margin:0 auto;padding-top:clamp(56px,6vw,100px)}
+.polar-footer__main{display:grid;grid-template-columns:minmax(0,44%) minmax(0,1fr);gap:24px;align-items:start}
+.polar-footer__brand{display:inline-flex;align-items:center;gap:14px;font-size:clamp(30px,2.75vw,46px);font-weight:750;letter-spacing:-1.6px;white-space:nowrap;line-height:1.15}
+.polar-footer__brand img{display:block;flex:none;width:clamp(42px,3.6vw,60px);height:auto}
+.polar-footer__slogan{margin:18px 0 0;font-size:clamp(24px,2.38vw,40px);font-weight:600;line-height:1.25;letter-spacing:-1.15px;text-wrap:balance}
+.polar-footer__navigation{display:grid;grid-template-columns:1.2fr 1.2fr 1fr 1fr;gap:clamp(20px,3.2vw,54px)}
+.polar-footer .polar-footer__navigation .polar-footer__group h2{margin:0 0 22px;font-size:21px;font-weight:650;line-height:1.4;letter-spacing:0}
+.polar-footer__group ul{display:grid;gap:14px;margin:0;padding:0;list-style:none}
+.polar-footer__group li{margin:0;padding:0;line-height:1.45}
+.polar-footer__group a{font-size:18px;color:#c7beb5;line-height:1.45;overflow-wrap:normal}
+.polar-footer__meta{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:32px;padding-top:17px;border-top:1px solid #9e958e}
+.polar-footer__meta small{font-size:15px;line-height:1.6;color:#c7beb5}
+.polar-footer__start{display:inline-flex;align-items:center;gap:7px;color:#ef772b!important;font-size:17px;font-weight:500;line-height:1.6;white-space:nowrap}
+.polar-footer__start:hover{color:#ffb184!important}
+.polar-footer__panorama{display:block;position:relative;width:100%;height:auto;margin:30px 0 0;aspect-ratio:2132/737;object-fit:cover;background:#1a1613;mask-image:linear-gradient(to bottom,transparent,#000 50px);pointer-events:none;user-select:none}
+.polar-footer__language{position:absolute;z-index:3;right:clamp(20px,2.6vw,44px);bottom:clamp(22px,2.8vw,48px)}
+.polar-footer__language-trigger{display:flex;align-items:center;justify-content:center;gap:12px;min-height:48px;min-width:172px;padding:10px 14px;border:1px solid #9e958e;border-radius:7px;background:rgba(26,22,19,.96);color:#faf7f4;font:inherit;font-size:16px;line-height:1.4;cursor:pointer}
+.polar-footer__language-trigger:hover,.polar-footer__language-trigger[aria-expanded=true]{border-color:#faf7f4}
+.polar-footer__language-trigger svg{flex:none}
+.polar-footer__language-menu{position:absolute;right:0;bottom:calc(100% + 10px);display:grid;gap:2px;min-width:190px;margin:0;padding:6px;list-style:none;border:1px solid #7a716a;border-radius:8px;background:#1a1613;box-shadow:0 12px 28px #0006}
+.polar-footer__language-menu li{margin:0;padding:0}
+.polar-footer__language-menu button{display:flex;align-items:center;justify-content:space-between;gap:20px;width:100%;min-height:42px;margin:0;padding:10px 12px;border:0;border-radius:4px;background:transparent;color:#faf7f4;font:inherit;font-size:15px;line-height:1.4;text-align:left;cursor:pointer;white-space:nowrap}
+.polar-footer__language-menu button:hover,.polar-footer__language-menu button:focus{background:#3a3330}
+.polar-footer__language-menu button[aria-checked=true]{color:#ffb184}
+@media(min-width:1400px){.polar-footer__slogan{white-space:nowrap}}
+@media(max-width:1100px){.polar-footer__main{grid-template-columns:1fr;gap:42px}.polar-footer__navigation{grid-template-columns:repeat(4,minmax(0,1fr));gap:26px}.polar-footer__slogan{font-size:30px;letter-spacing:-.7px}.polar-footer__brand{font-size:36px}.polar-footer .polar-footer__navigation .polar-footer__group h2{font-size:18px;margin-bottom:16px}.polar-footer__group a{font-size:16px}.polar-footer__group ul{gap:12px}.polar-footer__meta{margin-top:30px}.polar-footer__panorama{margin-top:24px}}
+@media(max-width:600px){.polar-footer__content{width:calc(100% - 48px);padding-top:44px}.polar-footer__main{gap:36px}.polar-footer__brand{gap:10px;font-size:30px;letter-spacing:-1px}.polar-footer__brand img{width:43px}.polar-footer__slogan{max-width:300px;margin-top:16px;font-size:25px;letter-spacing:-.6px;line-height:1.35}.polar-footer__navigation{grid-template-columns:repeat(2,minmax(0,1fr));gap:30px 22px}.polar-footer .polar-footer__navigation .polar-footer__group h2{font-size:17px;margin-bottom:13px}.polar-footer__group a{font-size:15px}.polar-footer__group ul{gap:11px}.polar-footer__meta{align-items:flex-start;margin-top:30px;padding-top:16px;gap:14px}.polar-footer__meta small{font-size:12px;white-space:nowrap}.polar-footer__start{gap:4px;font-size:13px}.polar-footer__start svg{width:16px;height:16px}.polar-footer__panorama{min-height:250px;margin-top:24px;object-position:55% center}.polar-footer__language{right:20px;bottom:20px}.polar-footer__language-trigger{min-height:44px;min-width:148px;padding:9px 11px;gap:9px;font-size:14px}.polar-footer__language-menu{min-width:180px}}
+@media(prefers-reduced-motion:reduce){.polar-footer a{transition:none}}
