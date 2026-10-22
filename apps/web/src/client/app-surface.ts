@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { consumePricingIntent } from './pricing-intent';
 import { consumeHomeSearchIntent } from './home-search-intent';
+import { consumeWorkspaceEntryIntent } from './workspace-entry-intent';
 
 export type AppSurface = 'customer' | 'admin';
 type PublicConfig = { surface?: string; adminOrigin?: string; customerOrigin?: string };
@@ -72,5 +73,5 @@ export function googleLoginTarget(value: string, surface = appSurface()) {
 export function loginDestination(search = '', surface = appSurface(), customerDestination = consumePricingIntent, homeSearchDestination = consumeHomeSearchIntent) {
   // Admin login does not consume customer intents. A fresh homepage search wins
   // once; without it, the existing billing intent/default destination applies.
-  return surface === 'admin' ? adminPath(search, false) : homeSearchDestination() ?? customerDestination();
+  return surface === 'admin' ? adminPath(search, false) : consumeWorkspaceEntryIntent() ?? homeSearchDestination() ?? customerDestination();
 }

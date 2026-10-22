@@ -1,24 +1,35 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router';
 import { ArrowRight, Bookmark, FileText, FolderPlus, Search, Users } from 'lucide-react';
-import { CommandForm, Empty, Field, formText, PageHeader, Status, useApp, workspaceHref } from './App';
+import { CommandForm, Empty, errorLabel, Field, formText, Loading, PageHeader, Status, useApp, workspaceHref } from './App';
+import { getStudioState, useQuery } from 'wasp/client/operations';
 import { useWorkspaceLocale } from './workspace-i18n/locale';
 import type { AppState, SourceHealth } from './types';
 import { advertiserName } from './ad-media';
 
-export function workspaceEntryDestination(search: string, workspaceId: string, hash = '') {
+export function workspaceEntryDestination(search: string, workspaceId: string, hash = '', defaultStartPage = 'ads') {
   const params = new URLSearchParams(search);
   params.set('workspace', workspaceId);
   if (params.has('invite')) return `/app/settings?${params}#team`;
   if (params.has('plan')) return `/app/settings?${params}#billing`;
-  return `/app/ads?${params}${hash}`;
+  const hasSearch = Boolean(params.get('q')?.trim() || params.get('domain')?.trim());
+  const path = hasSearch || defaultStartPage === 'ads' ? '/app/ads' : defaultStartPage === 'advertisers' ? '/app/advertisers' : defaultStartPage === 'tracking' ? '/app/tracking' : '/app/overview';
+  return `${path}?${params}${hash}`;
 }
 
 export function WorkspaceEntryPage() {
   const { state } = useApp(); const { href } = useWorkspaceLocale(); const location = useLocation();
-  return state.selectedWorkspace
-    ? <Navigate to={href(workspaceEntryDestination(location.search, state.selectedWorkspace.id, location.hash))} replace />
-    : <WorkspacePage />;
+  if (!state.selectedWorkspace) return <WorkspacePage />;
+  const params = new URLSearchParams(location.search);
+  if (params.has('invite') || params.has('plan')) return <Navigate to={href(workspaceEntryDestination(location.search, state.selectedWorkspace.id, location.hash))} replace />;
+  return <PreferredWorkspaceEntry key={state.selectedWorkspace.id} workspaceId={state.selectedWorkspace.id} />;
+}
+function PreferredWorkspaceEntry({ workspaceId }: { workspaceId: string }) {
+  const { href } = useWorkspaceLocale(); const location = useLocation();
+  const query = useQuery(getStudioState, { workspaceId });
+  if (query.error) return <Empty title="偏好读取失败" action={<button className="button secondary" onClick={() => void query.refetch()}>重试</button>}>{errorLabel(query.error)}</Empty>;
+  if (query.isLoading || !query.data) return <Loading />;
+  return <Navigate to={href(workspaceEntryDestination(location.search, workspaceId, location.hash, query.data.preferences.defaultStartPage))} replace />;
 }
 
 export function WorkspaceRequired() {

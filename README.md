@@ -101,3 +101,7 @@ export PATH="$PWD/toolchain/node_modules/.bin:$PATH"
 [MIT](LICENSE)。`apps/web` 基于 Open SaaS 模板，其许可见 [OPEN-SAAS-LICENSE](OPEN-SAAS-LICENSE)。
 
 采集公开广告数据时，请遵守各平台的服务条款和所在地区的法律法规。
+
+## Customer frontend
+
+The customer website and research workspace use the Studio frontend. See [Studio frontend](docs/frontend/studio.md) for runtime contracts, migration requirements, and the public/Cloud boundary.

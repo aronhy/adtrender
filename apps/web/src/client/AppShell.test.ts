@@ -17,8 +17,8 @@ const fixture = vi.hoisted(() => ({
 }));
 vi.mock('wasp/client/auth', () => ({ logout: vi.fn(), useAuth: () => ({ isLoading: fixture.authLoading, error: fixture.authError, data: { id: 'operator' }, refetch: vi.fn() }) }));
 vi.mock('wasp/client/operations', () => ({
-  getAppState: vi.fn(), appCommand: vi.fn(),
-  useQuery: (_operation: unknown, args: Record<string, unknown>) => { fixture.queries.push(args); return { data: fixture.data, isLoading: fixture.queryLoading, error: fixture.queryError, refetch: vi.fn() }; },
+  getAppState: vi.fn(), getCustomerSnapshot: 'snapshot', appCommand: vi.fn(),
+  useQuery: (operation: unknown, args: Record<string, unknown>) => { if(operation === 'snapshot') return { data: { enabled: false, snapshotId: null, asOf: null }, refetch: vi.fn() }; fixture.queries.push(args); return { data: fixture.data, isLoading: fixture.queryLoading, error: fixture.queryError, refetch: vi.fn() }; },
 }));
 vi.mock('./app-surface', () => ({ appSurface: () => fixture.surface, surfaceDestination: () => fixture.destination }));
 vi.mock('./site-analytics/SiteAnalytics', () => ({ SiteAnalytics: ({ children }: { children?: ReactNode }) => { fixture.analyticsMounts++; return createElement('div', { 'data-site-analytics': true }, children); } }));

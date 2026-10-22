@@ -35,7 +35,7 @@ export function ToastProvider({
   children,
 }: {
   scope: string;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const currentScope = useRef(scope);

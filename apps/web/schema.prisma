@@ -17,6 +17,7 @@ model User {
   isAdmin                Boolean   @default(false)
   displayName            String?
   disabledAt             DateTime?
+  studioPreferences      StudioPreference[]
   notificationPreference Json      @default("{}")
   onboardingState        Json      @default("{}")
   onboardingCompletedAt  DateTime?
@@ -148,6 +149,7 @@ model Workspace {
   auditEvents     AuditEvent[]
   feedback        Feedback[]
   productEvents   ProductEvent[]
+  studioPreferences StudioPreference[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, slug])
@@ -491,6 +493,7 @@ model Ad {
   firstObservedAt    DateTime?
   lastObservedAt     DateTime?
   fieldProvenance    Json      @default("{}")
+  quarantinedAt      DateTime?
 
   dataSource  DataSource      @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
   advertiser  Advertiser?     @relation(fields: [advertiserId, dataSourceId], references: [id, dataSourceId], onDelete: Restrict)
@@ -512,6 +515,7 @@ model Ad {
   @@index([mediaType, sourceStatus, lastObservedAt(sort: Desc), id(sort: Desc)])
   @@index([publisherPlatforms], type: Gin)
   @@index([reportedCountries], type: Gin)
+  @@index([quarantinedAt])
 }
 
 model AdObservation {
@@ -1382,4 +1386,19 @@ model CollectorSourceAssignment {
   node CollectorNode @relation(fields: [nodeId], references: [nodeId], onDelete: Restrict)
   @@unique([sourceKey, channel, generation])
   @@index([sourceKey, channel, state])
+}
+
+// Authenticated personal research state within a workspace.
+model StudioPreference {
+  id String @id @default(uuid())
+  userId String
+  workspaceId String
+  followedAdvertiserIds String[] @default([])
+  preferences Json @default("{}")
+  version Int @default(0)
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
 }

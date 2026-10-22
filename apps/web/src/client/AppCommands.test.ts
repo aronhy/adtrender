@@ -20,8 +20,9 @@ vi.mock('wasp/client/auth', () => ({
 }));
 vi.mock('wasp/client/operations', () => ({
   getAppState: vi.fn(),
+  getCustomerSnapshot: 'snapshot',
   appCommand: (c: unknown) => fixture.command(c),
-  useQuery: (_op: unknown, args: { workspaceId?: string }) => ({
+  useQuery: (op: unknown, args: { workspaceId?: string }) => op === 'snapshot' ? { data: { enabled: false, snapshotId: null, asOf: null }, refetch: vi.fn() } : ({
     data: state(args.workspaceId || 'a'),
     refetch: fixture.refetch,
   }),
@@ -67,7 +68,6 @@ function Probe() {
             type: 'SAVE_AD',
             workspaceId: 'a',
             adId: 'ad',
-            idempotencyKey: 'operation',
           }).catch(() => {}),
       },
       'Save'

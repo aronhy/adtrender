@@ -6,7 +6,7 @@ export function SidebarTooltip({
   label,
   enabled,
 }: {
-  children: ReactNode;
+  children?: ReactNode;
   label: string;
   enabled: boolean;
 }) {

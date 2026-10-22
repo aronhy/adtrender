@@ -1,7 +1,7 @@
 export default {
   'admin.title': 'Acceso de administradores',
   'admin.description': 'Solo para cuentas con permisos de administración. Iniciar sesión no concede permisos de administrador.',
-  'admin.brand': 'Administración de AdThrender',
+  'admin.brand': 'Administración de AdTrender',
   'admin.customerSite': 'Sitio web de clientes',
   'brand.heading': 'Tu próxima idea',
   'brand.accent': 'empieza aquí.',
@@ -15,7 +15,7 @@ export default {
   'login.title': 'Te damos la bienvenida de nuevo',
   'login.description': 'Inicia sesión para seguir investigando creatividades.',
   'login.submit': 'Iniciar sesión',
-  'login.switch': '¿Aún no tienes cuenta en AdThrender?',
+  'login.switch': '¿Aún no tienes cuenta en AdTrender?',
   'login.switchLink': 'Crear una cuenta',
   'signup.title': 'Dale espacio a tu próxima idea',
   'signup.description': 'Crea una cuenta para empezar a investigar anuncios.',

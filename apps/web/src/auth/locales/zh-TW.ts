@@ -1,7 +1,7 @@
 export default {
   'admin.title': '管理後台登入',
   'admin.description': '僅限已獲平台管理權限的帳號。登入不會自動授予管理權限。',
-  'admin.brand': 'AdThrender 管理後台',
+  'admin.brand': 'AdTrender 管理後台',
   'admin.customerSite': '返回客戶網站',
   'brand.heading': '你的下一個靈感',
   'brand.accent': '從這裡開始。',
@@ -15,7 +15,7 @@ export default {
   'login.title': '歡迎回來',
   'login.description': '登入帳號，繼續研究廣告創意。',
   'login.submit': '登入',
-  'login.switch': '還沒有 AdThrender 帳號？',
+  'login.switch': '還沒有 AdTrender 帳號？',
   'login.switchLink': '建立帳號',
   'signup.title': '開啟你的下一個靈感',
   'signup.description': '建立帳號，開始研究廣告。',

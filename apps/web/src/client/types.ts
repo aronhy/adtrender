@@ -7,6 +7,7 @@ export type SourceHealth = { status: string; message?: string | null; updatedAt?
 export type MediaView = { id: string; type: string; status: string; displayUrl?: string | null; displayUrlExpiresAt?: DateValue; posterUrl?: string | null; errorCode?: string | null }
 export type AdPlatform = 'facebook' | 'instagram' | 'messenger' | 'audience_network' | 'pinterest' | 'google' | 'youtube' | 'tiktok' | 'snapchat';
 export type AdView = {
+  advertiserRecordId?: string;
   id: string; sourceAdId: string; advertiserName: string | null; copy?: string | null; headline?: string | null;
   description?: string | null; cta?: string | null; sourceUrl: string; landingPageUrl?: string | null;
   publisherPlatforms: string[]; status: string; mediaType?: string | null; firstObservedAt: DateValue;

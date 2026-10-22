@@ -10,7 +10,7 @@ const session = vi.hoisted(() => ({
 }));
 // The SDK is the network boundary. Keep the app layout and routing real.
 vi.mock('wasp/client/auth', () => ({ useAuth: () => session.auth, logout: async () => undefined }));
-vi.mock('wasp/client/operations', () => ({ useQuery: () => session.workspace, getAppState: {}, appCommand: async () => ({}) }));
+vi.mock('wasp/client/operations', () => ({ useQuery: (operation: unknown) => operation === 'snapshot' ? { data: { enabled: false, snapshotId: null, asOf: null }, refetch: vi.fn() } : session.workspace, getCustomerSnapshot: 'snapshot', getAppState: {}, appCommand: async () => ({}) }));
 import { App } from './App';
 
 let container: HTMLDivElement;

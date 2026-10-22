@@ -16,7 +16,7 @@ export function ResizableAdDetail({
   label,
   resetLabel,
 }: {
-  children: ReactNode;
+  children?: ReactNode;
   label?: string;
   resetLabel?: string;
 }) {

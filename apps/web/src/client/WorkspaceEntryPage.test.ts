@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppState } from './types';
 
-const fixture = vi.hoisted(() => ({ state: { organizations: [], selectedWorkspace: null } as unknown as AppState, redirects: [] as string[] }));
+const fixture = vi.hoisted(() => ({ state: { organizations: [], selectedWorkspace: null } as unknown as AppState, redirects: [] as string[], startPage: 'ads' }));
 vi.mock('react-router', async importOriginal => ({
   ...await importOriginal<typeof import('react-router')>(),
   Navigate: ({ to }: { to: string }) => { fixture.redirects.push(to); return null; },
@@ -14,14 +14,15 @@ vi.mock('./App', () => ({
   PageHeader: ({ title }: { title: string }) => createElement('h1', null, title),
   CommandForm: ({ children }: { children: ReactNode }) => createElement('form', null, children),
   Field: ({ label, children }: { label: string; children: ReactNode }) => createElement('label', null, label, children),
-  Empty: () => null, Status: () => null, formText: () => '', workspaceHref: () => '/app',
+  Empty: () => null, Loading: () => null, errorLabel: () => '', Status: () => null, formText: () => '', workspaceHref: () => '/app',
 }));
+vi.mock('wasp/client/operations', () => ({ getStudioState: {}, useQuery: () => ({ data: { preferences: { defaultStartPage: fixture.startPage } } }) }));
 vi.mock('./workspace-i18n/locale', () => ({
   useWorkspaceLocale: () => ({ t: (key: string) => key, href: (path: string) => path }),
 }));
 import { WorkspaceEntryPage, workspaceEntryDestination } from './WorkspacePages';
 
-beforeEach(() => { fixture.redirects.length = 0; });
+beforeEach(() => { fixture.redirects.length = 0; fixture.startPage = 'ads'; });
 describe('workspace entry routing', () => {
   it('opens the ad library and retains language, search and current workspace scope', () => {
     const destination = new URL(workspaceEntryDestination('?workspace=stale&lang=es&q=shoes&country=US', 'current'), 'https://example.test');
@@ -41,6 +42,13 @@ describe('workspace entry routing', () => {
     fixture.state = { selectedWorkspace: { id: 'authorized' } } as AppState;
     renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/app?lang=en#saved-position'] }, createElement(WorkspaceEntryPage)));
     expect(fixture.redirects).toEqual(['/app/ads?lang=en&workspace=authorized#saved-position']);
+  });
+  it('uses the saved start page while keeping an explicit search in the library', () => {
+    fixture.state = { selectedWorkspace: { id: 'authorized' } } as AppState;
+    fixture.startPage = 'tracking';
+    renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/app?lang=en'] }, createElement(WorkspaceEntryPage)));
+    expect(fixture.redirects).toEqual(['/app/tracking?lang=en&workspace=authorized']);
+    expect(workspaceEntryDestination('?q=shoes&lang=en', 'authorized', '', 'tracking')).toBe('/app/ads?q=shoes&lang=en&workspace=authorized');
   });
   it('retains new-team onboarding and invitation form when no workspace is available', () => {
     fixture.state = { organizations: [], selectedWorkspace: null } as unknown as AppState;

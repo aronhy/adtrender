@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import express from 'express';
 import {afterAll,beforeAll,describe,expect,it,vi} from 'vitest';
-import {seedManifestContentHash} from '../../../../packages/contracts/src/seeds';
+import {seedManifestContentHash} from '@ad-research/contracts/seeds';
 
 // This intentionally imports the compiler's Express router and real Wasp auth.
 // Calling the collector handlers alone misses Wasp's preceding session gate.

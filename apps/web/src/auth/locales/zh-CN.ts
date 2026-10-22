@@ -1,7 +1,7 @@
 export default {
   'admin.title': '管理后台登录',
   'admin.description': '仅限已获平台管理权限的账号。登录不会自动授予管理权限。',
-  'admin.brand': 'AdThrender 管理后台',
+  'admin.brand': 'AdTrender 管理后台',
   'admin.customerSite': '返回客户网站',
   'brand.heading': '你的下一个灵感',
   'brand.accent': '从这里开始。',
@@ -15,7 +15,7 @@ export default {
   'login.title': '欢迎回来',
   'login.description': '登录账号，继续研究广告创意。',
   'login.submit': '登录',
-  'login.switch': '还没有 AdThrender 账号？',
+  'login.switch': '还没有 AdTrender 账号？',
   'login.switchLink': '创建账号',
   'signup.title': '开启你的下一个灵感',
   'signup.description': '创建账号，开始研究广告。',

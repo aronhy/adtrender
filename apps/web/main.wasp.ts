@@ -3,7 +3,7 @@
 
 import { app, page, route, query, action, api } from '@wasp.sh/spec';
 import { App } from './src/client/App' with { type: 'ref' };
-import { LandingPage,PricingPage,HelpPage,TermsPage,PrivacyPage,WorkspaceEntryPage,WorkspacePage,AdsPage,AdDetailPage,ResearchPage,SettingsPage,AdminPage,NotFoundPage } from './src/client/Pages' with { type: 'ref' };
+import { LandingPage,PricingPage,HelpPage,TermsPage,PrivacyPage,WorkspaceEntryPage,WorkspacePage,AdsPage,AdDetailPage,ResearchPage,SettingsPage,AdminPage,NotFoundPage,ServerErrorPage,StudioAdvertisersPage,StudioAdvertiserDetailPage,StudioChannelPage,StudioLandingPage,StudioProductsPage,StudioComparePage,StudioActivityPage,StudioNotificationsPage,StudioTrackingPage,StudioCollectionsPage,StudioCollectionDetailPage,StudioAccountPage,StudioTeamPage,StudioBillingPage } from './src/client/Pages' with { type: 'ref' };
 import { LoginPage, SignupPage, RequestPasswordResetPage, PasswordResetPage, EmailVerificationPage } from './src/auth/Pages' with { type: 'ref' };
 import { GoogleCallbackPage } from './src/auth/GoogleCallbackPage' with { type: 'ref' };
 import { getVerificationEmailContent, getPasswordResetEmailContent } from './src/auth/emails' with { type: 'ref' };
@@ -15,6 +15,9 @@ import { middlewareConfig } from './src/server/middleware' with { type: 'ref' };
 import { onBeforeSignup,onAfterSignup,onBeforeLogin,onAfterLogin } from './src/auth/hooks' with { type: 'ref' };
 import { getPlatformAdminData,platformAdminCommand } from './src/server/platform-admin-operations' with { type: 'ref' };
 import { getAppState,getPublicPricing,searchPublicAds,getPublicAd,getPublicRelatedAds,getPublicAdMediaDownload,getPublicAdHistory,getPublicAdHistoryEvidence,getResearchPage,getAdminPage,getGrowthOverview,appCommand } from './src/server/operations' with { type: 'ref' };
+import { getStudioCatalog } from './src/studio/ads' with { type: 'ref' };
+import { getStudioState, studioCommand } from './src/studio/workspace' with { type: 'ref' };
+import { getStudioPublicOverview, getCustomerSnapshot } from './src/studio/public' with { type: 'ref' };
 import { health,stripeWebhook,stripeMiddleware } from './src/server/api' with { type: 'ref' };
 import { growthConsent,growthEvents,growthMiddleware } from './src/growth/api' with { type: 'ref' };
 import {getSeedPage,getSeedImportPreview,getSeedDetail,getSeedDispatchPage,getSeedOverview,getSeedCoverage,getSeedRules,exportSeedLibrary,seedCommand} from './src/server/seed-operations' with {type:'ref'};
@@ -23,12 +26,12 @@ import {collectorConfig,collectorConfigReceipt,collectorPlatformGrant,collectorC
 export default app({
   name: 'AdResearch',
   wasp: { version: '0.25.0' },
-  title: 'AdThrender',
+  title: 'AdTrender · Find your next winning ad',
   head: ['<link rel="icon" type="image/svg+xml" href="/favicon.svg" />', '<meta name="description" content="搜索公开 Facebook 广告，查看素材与文案，在团队工作区保存有依据的广告研究。" />'],
   auth: {
     userEntity: 'User',
     methods: { email: {
-      fromField: { name: 'AdThrender', email: 'research@example.com' },
+      fromField: { name: 'AdTrender', email: 'research@example.com' },
       emailVerification: { clientRoute: 'EmailVerificationRoute', getEmailContentFn: getVerificationEmailContent },
       passwordReset: { clientRoute: 'PasswordResetRoute', getEmailContentFn: getPasswordResetEmailContent },
       userSignupFields: getEmailUserFields,
@@ -38,7 +41,7 @@ export default app({
   },
   client: { rootComponent: App },
   server: { setupFn: serverSetup, middlewareConfigFn: middlewareConfig },
-  emailSender: { provider: 'SMTP', defaultFrom: { name: 'AdThrender', email: 'research@example.com' } },
+  emailSender: { provider: 'SMTP', defaultFrom: { name: 'AdTrender', email: 'research@example.com' } },
   spec: [
     route('LandingRoute', '/', page(LandingPage)),
     route('PricingRoute','/pricing',page(PricingPage)),
@@ -51,6 +54,21 @@ export default app({
     route('AdDetailRoute','/app/ads/:adId',page(AdDetailPage,{authRequired:true})),
     route('ResearchRoute','/app/research',page(ResearchPage,{authRequired:true})),
     route('SettingsRoute','/app/settings',page(SettingsPage,{authRequired:true})),
+    route('StudioAdvertisersRoute','/app/advertisers',page(StudioAdvertisersPage,{authRequired:true})),
+    route('StudioAdvertiserDetailRoute','/app/advertisers/:advertiserId',page(StudioAdvertiserDetailPage,{authRequired:true})),
+    route('StudioChannelRoute','/app/channels/:channel',page(StudioChannelPage,{authRequired:true})),
+    route('StudioLandingRoute','/app/landing',page(StudioLandingPage,{authRequired:true})),
+    route('StudioProductsRoute','/app/products',page(StudioProductsPage,{authRequired:true})),
+    route('StudioCompareRoute','/app/compare',page(StudioComparePage,{authRequired:true})),
+    route('StudioActivityRoute','/app/activity',page(StudioActivityPage,{authRequired:true})),
+    route('StudioNotificationsRoute','/app/notifications',page(StudioNotificationsPage,{authRequired:true})),
+    route('StudioTrackingRoute','/app/tracking',page(StudioTrackingPage,{authRequired:true})),
+    route('StudioCollectionsRoute','/app/collections',page(StudioCollectionsPage,{authRequired:true})),
+    route('StudioCollectionDetailRoute','/app/collections/:folderId',page(StudioCollectionDetailPage,{authRequired:true})),
+    route('StudioAccountRoute','/app/account',page(StudioAccountPage,{authRequired:true})),
+    route('StudioTeamRoute','/app/team',page(StudioTeamPage,{authRequired:true})),
+    route('StudioBillingRoute','/app/billing',page(StudioBillingPage,{authRequired:true})),
+    route('StudioServerErrorRoute','/500',page(ServerErrorPage)),
     route('AdminRoute','/app/admin',page(AdminPage,{authRequired:true})),
     route('LoginRoute', '/login', page(LoginPage)),
     route('SignupRoute', '/signup', page(SignupPage)),
@@ -58,6 +76,11 @@ export default app({
     route('RequestPasswordResetRoute', '/request-password-reset', page(RequestPasswordResetPage)),
     route('PasswordResetRoute', '/password-reset', page(PasswordResetPage)),
     route('EmailVerificationRoute', '/email-verification', page(EmailVerificationPage)),
+    query(getStudioPublicOverview,{entities:['Ad','Advertiser','MediaObject']}),
+    query(getCustomerSnapshot,{entities:[]}),
+    query(getStudioCatalog,{entities:['User','Workspace','Organization','OrganizationMember','WorkspaceMember','Ad','Advertiser','DataSource','MediaObject','AdHistoryEvent','SavedAd']}),
+    query(getStudioState,{entities:['User','Workspace','Organization','OrganizationMember','WorkspaceMember','StudioPreference','AuditEvent','Subscription']}),
+    action(studioCommand,{entities:['User','Workspace','Organization','OrganizationMember','WorkspaceMember','StudioPreference','Advertiser','AuditEvent','Subscription']}),
     query(getAppState,{entities:['User','Organization','Workspace','OrganizationMember','WorkspaceMember','SavedAd','AnalysisJob','Entitlement','Subscription','PlanVersion','AccountSupportRequest','Feedback','MediaObject']}),
     query(getPublicPricing,{entities:['PlanVersion']}),
     query(searchPublicAds,{entities:['Ad','AdObservation','MediaObject','DataSource','SavedAd']}),

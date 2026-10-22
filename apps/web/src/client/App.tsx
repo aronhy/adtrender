@@ -1,31 +1,29 @@
-import { SidebarTooltip } from './ui/SidebarTooltip';
 import { ToastProvider, ToastViewport, useToast } from './ui/Toast';
 import {landingPageUrl} from './ad-links';
-import { Brand } from './brand/Brand';
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { logout, useAuth } from 'wasp/client/auth';
 import { appCommand, getAppState, useQuery } from 'wasp/client/operations';
-import { ArrowUpRight, Bookmark, CircleHelp, FolderSearch, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, Settings, X } from 'lucide-react';
+import { ArrowUpRight, FolderSearch } from 'lucide-react';
 import type { AppCommand, AppState, CommandResult, DateValue } from './types';
 import { continuePricingAfterSetup } from './pricing-intent';
 import { clearHomeSearchIntent } from './home-search-intent';
 import { SiteAnalytics } from './site-analytics/SiteAnalytics';
 import './style.css';
 import './workspace.css';
-import { WorkspaceLanguagePicker, WorkspaceLocaleProvider, useWorkspaceLocale } from './workspace-i18n/locale';
+import { WorkspaceLocaleProvider, useWorkspaceLocale } from './workspace-i18n/locale';
 import { commandNoticeKey } from './workspace-i18n/messages';
 import { appSurface } from './app-surface';
 import { SurfaceBoundary } from './SurfaceBoundary';
 import { AdminShell } from './AdminShell';
 
-type AppContextValue = { registerReadback?: (refresh: () => Promise<unknown>) => () => void; state: AppState; commandVersion: number; refresh: () => Promise<unknown>; run: (command: AppCommand) => Promise<CommandResult> };
-const AppContext = createContext<AppContextValue | null>(null);
-export function useApp() {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('Workspace context is required');
-  return context;
-}
+import { AppContext, useApp } from './app-context';
+import { CustomerSnapshotProvider, useCustomerSnapshot, useSnapshotFailure } from './studio/snapshot-context';
+import { StudioShell } from './studio/StudioShell';
+import { SiteHeader, SiteFooter } from './studio/StudioPublic';
+import { rememberWorkspaceEntryIntent } from './workspace-entry-intent';
+export { useApp } from './app-context';
+
 export const canEdit = (state: AppState) => ['OWNER', 'ADMIN', 'EDITOR'].includes(state.role);
 export const canManage = (state: AppState) => ['OWNER', 'ADMIN'].includes(state.role);
 export const workspaceHref = (path: string, workspaceId?: string | null) => workspaceId ? `${path}?workspace=${encodeURIComponent(workspaceId)}` : path;
@@ -104,7 +102,7 @@ export function track(command: Extract<AppCommand, { type: 'PRODUCT_EVENT' }>) {
 function PublicLayout() {
   const location = useLocation();
   if (location.pathname === '/' || ['/login', '/signup', '/request-password-reset', '/password-reset', '/email-verification', '/login/google/callback'].includes(location.pathname.replace(/\/+$/, ''))) return <Outlet />;
-  return <div className="public-site"><header className="site-header"><Brand /><nav aria-label="官网导航"><NavLink to="/pricing">套餐</NavLink><NavLink to="/help">帮助</NavLink><Link to="/login">登录</Link><Link className="button primary compact" to="/signup">开始使用</Link></nav></header><Outlet /><footer className="site-footer"><Brand /><p>公开广告，有据可查。团队研究，各自保留。</p><nav aria-label="页脚导航"><Link to="/help">帮助中心</Link><Link to="/terms">服务条款</Link><Link to="/privacy">隐私说明</Link></nav><small>已开放注册 · 正式服务与价格以发布说明为准</small></footer></div>;
+  return <div className="studio-public"><SiteHeader /><Outlet /><SiteFooter /></div>;
 }
 function WorkspaceLayout() {
   const [params] = useSearchParams();
@@ -112,16 +110,14 @@ function WorkspaceLayout() {
   return <ToastProvider scope={scope}><WorkspaceContent /></ToastProvider>;
 }
 function WorkspaceContent() {
-  const { t, href, locale, error: describeError } = useWorkspaceLocale();
+  const { t, href, error: describeError } = useWorkspaceLocale();
   const [params] = useSearchParams(); const navigate = useNavigate(); const location = useLocation();
+  const snapshot = useCustomerSnapshot();
   const workspaceId = params.get('workspace') || undefined;
   const organizationId = params.get('organization') || undefined;
-  const query = useQuery(getAppState, { workspaceId, organizationId }); const state = query.data as AppState | undefined;
-  const [menuOpen, setMenuOpen] = useState(false); const { notify, dismiss } = useToast();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem('adthrender.workspace.sidebarCollapsed') === 'true'; }
-    catch { return false; }
-  });
+  const query = useQuery(getAppState, { workspaceId, organizationId, ...(snapshot.snapshotId ? { snapshotId: snapshot.snapshotId } : {}) }); const state = query.data as AppState | undefined;
+  useSnapshotFailure(query.error);
+  const { notify, dismiss } = useToast();
   const [commandVersion, setCommandVersion] = useState(0);
   const readbacks = useRef(new Set<() => Promise<unknown>>());
   const registerReadback = useCallback((refresh: () => Promise<unknown>) => { readbacks.current.add(refresh); return () => { readbacks.current.delete(refresh); }; }, []);
@@ -131,45 +127,13 @@ function WorkspaceContent() {
   };
   const commandScope = workspaceId ?? organizationId ?? 'setup';
   const liveCommandScope = useRef(commandScope); liveCommandScope.current = commandScope;
-  const menuRef = useRef<HTMLElement>(null);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    try { localStorage.setItem('adthrender.workspace.sidebarCollapsed', String(sidebarCollapsed)); }
-    catch { /* Sidebar controls remain usable when storage is unavailable. */ }
-  }, [sidebarCollapsed]);
-  useEffect(() => {
-    if (!menuOpen) return;
-    const previous = document.activeElement;
-    const panel = menuRef.current;
-    const focusable = () => Array.from(panel?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), select:not([disabled]), input:not([disabled])') ?? []).filter(el => el.getClientRects().length > 0);
-    focusable()[0]?.focus();
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); }
-      if (event.key === 'Tab') {
-        const nodes = focusable(), first = nodes[0], last = nodes.at(-1);
-        if (event.shiftKey && (document.activeElement === first || !panel?.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
-        else if (!event.shiftKey && (document.activeElement === last || !panel?.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
-      }
-    };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', handleKey);
-    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', handleKey); if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
-  }, [menuOpen]);
-  useEffect(() => {
-    if (!window.matchMedia) return;
-    const wide = window.matchMedia('(min-width: 961px)');
-    const closeWideMenu = () => { if (wide.matches) setMenuOpen(false); };
-    wide.addEventListener('change', closeWideMenu);
-    return () => wide.removeEventListener('change', closeWideMenu);
-  }, []);
   const run = async (command: AppCommand): Promise<CommandResult> => {
     const operationKey = 'idempotencyKey' in command && command.idempotencyKey ? command.idempotencyKey : crypto.randomUUID();
     const noticeId = `command:${operationKey}`;
     const startedScope = commandScope;
     let result: CommandResult;
     try { result = (await appCommand(command)) as CommandResult; }
-    catch (reason) { notify({ id: noticeId, type: 'error', message: describeError(reason) }); throw reason; }
+    catch (reason) { snapshot.reportError(reason); notify({ id: noticeId, type: 'error', message: describeError(reason) }); throw reason; }
     if (liveCommandScope.current !== startedScope) return result ?? {};
     setCommandVersion(version => version + 1);
     const message = t(command.type === 'SAVE_AD' ? 'ui.saved' : command.type === 'SAVE_NOTE' ? 'ui.noteSaved' : commandNoticeKey(command.type));
@@ -179,7 +143,7 @@ function WorkspaceContent() {
       const nextWorkspaceId = result.workspaceId ?? undefined;
       const nextOrganizationId = nextWorkspaceId ? undefined : result.organizationId;
       const pricingDestination = continuePricingAfterSetup(command.type, nextWorkspaceId, params.get('plan'));
-      navigate(href(pricingDestination ?? (nextWorkspaceId ? workspaceHref('/app', nextWorkspaceId) : nextOrganizationId ? `/app?organization=${encodeURIComponent(nextOrganizationId)}` : '/app')), { replace: true });
+      navigate(snapshot.href(href(pricingDestination ?? (nextWorkspaceId ? workspaceHref('/app', nextWorkspaceId) : nextOrganizationId ? `/app?organization=${encodeURIComponent(nextOrganizationId)}` : '/app'))), { replace: true });
       if (workspaceId === nextWorkspaceId && organizationId === nextOrganizationId) await refresh();
     } else await refresh();
     if (liveCommandScope.current !== startedScope) return result ?? {};
@@ -191,30 +155,14 @@ function WorkspaceContent() {
     return result ?? {};
   };
   const selected = state?.selectedWorkspace;
-  const contextHref = (path: string) => href(selected ? workspaceHref(path, selected.id) : state?.billing?.organizationId ? `${path}?organization=${encodeURIComponent(state.billing.organizationId)}` : path);
-  const navigation = [
-    ['/app/ads', 'nav.ads', Search], ['/app/overview', 'nav.overview', LayoutDashboard],
-    ['/app/research', 'nav.research', Bookmark], ['/app/settings', 'nav.settings', Settings],
-  ] as const;
-  const currentTitle = t(navigation.find(([path]) => location.pathname.startsWith(path))?.[1] ?? (selected ? 'nav.ads' : 'nav.start'));
-  const switchWorkspace = (id: string) => { setMenuOpen(false); navigate(href(workspaceHref('/app', id))); };
-  useEffect(() => { const original = document.title; document.title = `${currentTitle} · AdThrender`; return () => { document.title = original; }; }, [currentTitle]);
-  return <div className={`workspace-shell${location.pathname.replace(/\/+$/, '') === '/app/ads' ? ' workspace-library-shell' : ''}${location.pathname.startsWith('/app/ads') ? ' workspace-ads-shell' : ''}${sidebarCollapsed ? ' workspace-collapsed' : ''}`} lang={locale} data-locale={locale}>
-    <a href="#main-content" className="workspace-skip">{t('nav.skip')}</a>
-    <header className="mobile-bar"><Brand to={contextHref('/app')} />{location.pathname.replace(/\/+$/, '') === '/app/ads' && <><div className="library-header-title"><strong>{t(params.get('source') === 'google' || params.get('platform') === 'google' ? 'ads.library.googleTitle' : 'ads.title')}</strong><span>{t('ads.description')}</span></div><WorkspaceLanguagePicker /></>}<button ref={toggleRef} className="icon-button workspace-menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label={t(menuOpen ? 'nav.close' : 'nav.open')} aria-expanded={menuOpen} aria-controls="workspace-navigation">{menuOpen ? <X /> : <Menu />}</button></header>
-    {menuOpen && <button className="nav-scrim" aria-label={t('nav.close')} onClick={() => setMenuOpen(false)} tabIndex={-1} />}
-    <aside id="workspace-navigation" ref={menuRef} className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`} role={menuOpen ? 'dialog' : undefined} aria-modal={menuOpen || undefined} aria-label={t('nav.label')}>
-      <div className="workspace-sidebar-brand" onClick={() => setMenuOpen(false)}><Brand to={contextHref('/app')} /><button className="icon-button sidebar-close" aria-label={t('nav.close')} onClick={() => setMenuOpen(false)}><X size={20} /></button></div>
-      <div className="workspace-switch"><label htmlFor="workspace-select">{t('nav.workspace')}</label><select id="workspace-select" value={selected?.id ?? ''} disabled={!state?.workspaces.length} onChange={event => switchWorkspace(event.target.value)}><option value="" disabled>{t('nav.noWorkspace')}</option>{state?.workspaces.map(workspace => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select>{state && state.role !== 'NONE' && <Status value={state.role} />}</div>
-      <button type="button" className="sidebar-collapse" aria-label={t(sidebarCollapsed ? 'nav.expandSidebar' : 'nav.collapseSidebar')} title={t(sidebarCollapsed ? 'nav.expandSidebar' : 'nav.collapseSidebar')} aria-expanded={!sidebarCollapsed} aria-controls="workspace-navigation" onClick={() => setSidebarCollapsed(value => !value)}>{sidebarCollapsed ? <PanelLeftOpen size={19} aria-hidden="true" /> : <PanelLeftClose size={19} aria-hidden="true" />}<span>{t('nav.collapseSidebar')}</span></button>
-      <nav aria-label={t('nav.label')}>{navigation.map(([path, key, Icon]) => <SidebarTooltip key={path} label={t(key)} enabled={sidebarCollapsed}><NavLink to={contextHref(path)} onClick={() => setMenuOpen(false)} aria-label={t(key)} title={t(key)}><Icon size={19} aria-hidden="true" /><span className="sidebar-link-label">{t(key)}</span></NavLink></SidebarTooltip>)}</nav>
-      <div className="sidebar-bottom"><SidebarTooltip label={t('nav.help')} enabled={sidebarCollapsed}><Link to={href('/help')} className="support-link" aria-label={t('nav.help')} title={t('nav.help')}><CircleHelp size={19} aria-hidden="true" /><span className="sidebar-link-label">{t('nav.help')}</span></Link></SidebarTooltip>{state && <div className="account-line"><span className="avatar" aria-hidden="true">{(state.user.displayName || state.user.email).slice(0, 1).toUpperCase()}</span><div><strong>{state.user.displayName || t('nav.account')}</strong><small>{state.user.email}</small></div><button onClick={() => void logout()} className="icon-button workspace-signout" aria-label={t('nav.signOut')} title={t('nav.signOut')}><LogOut size={17} aria-hidden="true" /></button></div>}</div>
-    </aside>
-    <main className="workspace-main" id="main-content" tabIndex={-1} inert={menuOpen || undefined}><div className="workspace-topline"><div className="workspace-context"><div><span>{state?.organizations.find(org => org.id === (selected?.organizationId ?? state?.billing?.organizationId))?.name ?? t('nav.start')}</span><span className="workspace-breadcrumb"> / {currentTitle}</span></div><select className="workspace-topline-switch" aria-label={t('nav.workspace')} title={t('nav.workspace')} value={selected?.id ?? ''} disabled={!state?.workspaces.length} onChange={event => switchWorkspace(event.target.value)}><option value="" disabled>{t('nav.noWorkspace')}</option>{state?.workspaces.map(workspace => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select></div><WorkspaceLanguagePicker /></div>
-
-      {query.isLoading ? <Loading label={t('common.workspaceLoading')} /> : query.error || !state ? <Empty title={t('common.workspaceError')} action={<button className="button secondary" onClick={() => void query.refetch()}>{t('common.reconnect')}</button>}>{query.error ? describeError(query.error) : t('common.workspaceErrorBody')}</Empty> : <AppContext.Provider key={`${selected?.id ?? 'new'}:${location.pathname.startsWith('/app/admin') ? 'admin' : 'app'}`} value={{ state, commandVersion, run, registerReadback, refresh: async () => { if (!await refreshReadbacks()) throw new Error('LIST_REFRESH_FAILED'); } }}><Outlet /></AppContext.Provider>}
-    </main><ToastViewport /></div>;
+  const contextHref = (path: string) => snapshot.href(href(selected ? workspaceHref(path, selected.id) : state?.billing?.organizationId ? `${path}?organization=${encodeURIComponent(state.billing.organizationId)}` : path));
+  const switchWorkspace = (id: string) => navigate(snapshot.href(href(workspaceHref('/app', id))));
+  return <StudioShell state={state} contextHref={contextHref} onWorkspaceChange={switchWorkspace} onSignOut={() => void logout()} onDismissNotice={() => {}}>
+    {query.isLoading ? <Loading label={t('common.workspaceLoading')} /> : query.error || !state ? <Empty title={t('common.workspaceError')} action={<button className="button secondary" onClick={() => void query.refetch()}>{t('common.reconnect')}</button>}>{query.error ? describeError(query.error) : t('common.workspaceErrorBody')}</Empty> : <AppContext.Provider key={`${selected?.id ?? 'new'}:${location.pathname.startsWith('/app/admin') ? 'admin' : 'app'}`} value={{ state, commandVersion, run, registerReadback, refresh: async () => { if (!await refreshReadbacks()) throw new Error('LIST_REFRESH_FAILED'); } }}><Outlet /></AppContext.Provider>}
+    <ToastViewport />
+  </StudioShell>;
 }
+
 function AdminLayout() {
   const query = useQuery(getAppState, {}); const state = query.data as AppState | undefined;
   const [commandVersion, setCommandVersion] = useState(0);
@@ -227,6 +175,14 @@ function AdminLayout() {
   return <AdminShell state={state} loading={query.isLoading} error={query.error} onRetry={() => void query.refetch()} onSignOut={() => void logout()}>
     {state && <AppContext.Provider value={{ state, commandVersion, run, refresh: query.refetch }}><Outlet /></AppContext.Provider>}
   </AdminShell>;
+}
+function WorkspaceLoginRedirect({ to }: { to: string }) {
+  const location = useLocation(), navigate = useNavigate();
+  useEffect(() => {
+    rememberWorkspaceEntryIntent(location.pathname, location.search, location.hash);
+    navigate(to, { replace: true });
+  }, [location.pathname, location.search, location.hash, navigate, to]);
+  return <Loading />;
 }
 function WorkspaceSession() {
   const auth = useAuth(); const { t, href } = useWorkspaceLocale();
@@ -244,8 +200,8 @@ function WorkspaceSession() {
   }
   if (auth.isLoading) return <div className="workspace-session"><Loading label={t('common.sessionLoading')} /></div>;
   if (auth.error) return <div className="workspace-session"><Empty title={t('common.sessionError')} action={<button className="button secondary" onClick={() => void auth.refetch()}>{t('common.retry')}</button>}>{t('common.networkHint')}</Empty></div>;
-  if (!auth.data) return <Navigate to={href('/login')} replace />;
-  return <WorkspaceLayout />;
+  if (!auth.data) return <WorkspaceLoginRedirect to={href('/login')} />;
+  return <CustomerSnapshotProvider><WorkspaceLayout /></CustomerSnapshotProvider>;
 }
 export function App() {
   const location = useLocation();

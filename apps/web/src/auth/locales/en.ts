@@ -1,7 +1,7 @@
 export default {
   'admin.title': 'Administrator sign in',
   'admin.description': 'For accounts with platform administrator access. Signing in does not grant administrator permissions.',
-  'admin.brand': 'AdThrender administration',
+  'admin.brand': 'AdTrender administration',
   'admin.customerSite': 'Customer website',
   'brand.heading': 'Your next idea',
   'brand.accent': 'starts here.',
@@ -15,7 +15,7 @@ export default {
   'login.title': 'Welcome back',
   'login.description': 'Sign in to continue your creative research.',
   'login.submit': 'Sign in',
-  'login.switch': 'New to AdThrender?',
+  'login.switch': 'New to AdTrender?',
   'login.switchLink': 'Create an account',
   'signup.title': 'Make room for your next idea',
   'signup.description': 'Create an account to start your ad research.',
