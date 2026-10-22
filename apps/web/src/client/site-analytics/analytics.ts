@@ -1,8 +1,9 @@
 import { isLocale } from '../landing/messages';
 import { createGrowthCapture } from './growth';
+import { isFreeToolPath, readyFreeTools } from '../../shared/free-tools';
 
 const origin = 'https://adtrender.com';
-const pages: Record<string, string> = { '/': 'AdTrender', '/pricing': 'AdTrender · Pricing', '/help': 'AdTrender · Help', '/terms': 'AdTrender · Terms', '/privacy': 'AdTrender · Privacy' };
+const pages: Record<string, string> = { '/': 'AdTrender', '/pricing': 'AdTrender · Pricing', '/help': 'AdTrender · Help', '/terms': 'AdTrender · Terms', '/privacy': 'AdTrender · Privacy', '/tools': 'AdTrender · 免费工具', ...Object.fromEntries(readyFreeTools.map(tool => [`/tools/${tool.slug}`, `AdTrender · ${tool.title}`])) };
 const homeAnchors = new Set(['landing-nav', 'main', 'explore', 'details', 'analysis', 'analysis-example', 'collections', 'team', 'how', 'faq']);
 const consentKey = 'adtrender.website-analytics.v2';
 export type Choice = 'accepted' | 'rejected' | null;
@@ -37,6 +38,9 @@ export function safeAttribution(value: string, referrer: string): Record<string,
   } catch { /* Direct visit. */ }
   try {
     const url = new URL(value);
+    // Tools never turn URL parameters into campaign metadata: callers may put
+    // brand queries, financial assumptions or creative text in those fields.
+    if (isFreeToolPath(url.pathname)) return result;
     for (const [key, field] of [['utm_source', 'campaign_source'], ['utm_medium', 'campaign_medium'], ['utm_campaign', 'campaign_name'], ['utm_content', 'campaign_content']]) {
       const label = url.searchParams.get(key!);
       // Campaign labels only: no free-form keywords, URLs, emails or long tokens.
@@ -60,10 +64,17 @@ function growthReferrerOrigin(value: string): string | undefined {
   } catch { return undefined; }
 }
 
-/** A runtime belongs to one document. The public/private boundary never changes. */
+type DocumentType = 'marketing' | 'tools' | 'private';
+function documentType(value: string): DocumentType {
+  const page = publicPage(value);
+  return !page ? 'private' : isFreeToolPath(page.path) ? 'tools' : 'marketing';
+}
+/** Replay-capable marketing, tools and private pages each own a document.
+ * Stopping/removing a loaded script cannot remove its installed observers. */
 export function createSiteAnalytics(window: Window, config: { ga4?: string; clarity?: string; growth?: boolean }, navigate = (url: string, replace: boolean) => replace ? window.location.replace(url) : window.location.assign(url)) {
   const win = window as AnalyticsWindow, document = win.document;
-  const documentPublic = Boolean(publicPage(win.location.href));
+  const initialDocumentType = documentType(win.location.href);
+  const documentPublic = initialDocumentType !== 'private';
   const attribution = safeAttribution(win.location.href, document.referrer);
   const landing = publicPage(win.location.href);
   const referrerOrigin = growthReferrerOrigin(attribution.page_referrer ?? '');
@@ -73,8 +84,10 @@ export function createSiteAnalytics(window: Window, config: { ga4?: string; clar
     ...(attribution.campaign_name ? { campaign: attribution.campaign_name } : {}),
     ...(attribution.campaign_content ? { content: attribution.campaign_content } : {}),
     ...(referrerOrigin ? { referrerOrigin } : {}) } : null) : null;
-  const ga4 = /^G-[A-Z\d]{4,20}$/.test(config.ga4 ?? '') ? config.ga4! : '';
-  const clarity = /^[a-z\d]{5,30}$/i.test(config.clarity ?? '') ? config.clarity! : '';
+  // A Google tag may collect automatic outbound/form events configured outside
+  // this app. Tool documents therefore use only our bounded first-party API.
+  const ga4 = initialDocumentType === 'marketing' && /^G-[A-Z\d]{4,20}$/.test(config.ga4 ?? '') ? config.ga4! : '';
+  const clarity = initialDocumentType === 'marketing' && /^[a-z\d]{5,30}$/i.test(config.clarity ?? '') ? config.clarity! : '';
   const originalPush = win.history.pushState, originalReplace = win.history.replaceState;
   let started = false, leaving = false, installed = false, lastPath: string | null = null;
   const scripts: HTMLScriptElement[] = [];
@@ -82,7 +95,7 @@ export function createSiteAnalytics(window: Window, config: { ga4?: string; clar
   try { const value = win.localStorage.getItem(consentKey); if (value === 'accepted' || value === 'rejected') currentChoice = value; } catch { /* Default remains denied. */ }
   const enabled = () => documentPublic && Boolean(ga4 || clarity || growth);
   const mustReload = (value: string) => {
-    try { const target = new URL(value, win.location.href); return target.origin === win.location.origin && Boolean(publicPage(target.href)) !== documentPublic; } catch { return false; }
+    try { const target = new URL(value, win.location.href); return target.origin === win.location.origin && documentType(target.href) !== initialDocumentType; } catch { return false; }
   };
   const sanitizeAddress = () => {
     const address = safePublicAddress(win.location.href);
@@ -98,7 +111,8 @@ export function createSiteAnalytics(window: Window, config: { ga4?: string; clar
   function leave(value: string, replace = false) {
     if (leaving) return;
     leaving = true; disable();
-    const destination = new URL(value, win.location.href).href;
+    const target = new URL(value, win.location.href).href;
+    const destination = safePublicAddress(target) ?? target;
     if (!growth) { navigate(destination, replace); return; }
     // Allow the same-origin consent response to set its HttpOnly cookie before
     // signup/OAuth starts. Analytics failure must never block the business flow.
@@ -191,5 +205,5 @@ export function createSiteAnalytics(window: Window, config: { ga4?: string; clar
     document.removeEventListener('click', onClick, true);
     win.removeEventListener('popstate', onPop, true); win.removeEventListener('hashchange', onPop, true); win.removeEventListener('storage', onStorage);
   }
-  return { start, page, choose, choice: () => currentChoice, enabled, install, dispose, mustReload, leave, growth };
+  return { start, page, choose, choice: () => currentChoice, enabled, install, dispose, mustReload, leave, growth, documentType: initialDocumentType };
 }

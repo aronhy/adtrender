@@ -5,6 +5,15 @@ Allow: /pricing$
 Allow: /help$
 Allow: /terms$
 Allow: /privacy$
+Allow: /tools$
+Allow: /tools/roas-calculator$
+Allow: /tools/ecommerce-profit-calculator$
+Allow: /tools/profit-margin-calculator$
+Allow: /tools/roi-calculator$
+Allow: /tools/customer-lifetime-value-calculator$
+Allow: /tools/shopify-cost-calculator$
+Allow: /tools/hook-generator$
+Allow: /tools/ad-finder$
 Allow: /sitemap.xml$
 Allow: /assets/
 Allow: /favicon.svg$

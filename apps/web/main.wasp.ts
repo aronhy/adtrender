@@ -3,6 +3,7 @@
 
 import { app, page, route, query, action, api } from '@wasp.sh/spec';
 import { App } from './src/client/App' with { type: 'ref' };
+import {ToolsIndexPage,FreeToolPage} from './src/client/tools/ToolsPage' with {type:'ref'};
 import { LandingPage,PricingPage,HelpPage,TermsPage,PrivacyPage,WorkspaceEntryPage,WorkspacePage,AdsPage,AdDetailPage,ResearchPage,SettingsPage,AdminPage,NotFoundPage,ServerErrorPage,StudioAdvertisersPage,StudioAdvertiserDetailPage,StudioChannelPage,StudioLandingPage,StudioProductsPage,StudioComparePage,StudioActivityPage,StudioNotificationsPage,StudioTrackingPage,StudioCollectionsPage,StudioCollectionDetailPage,StudioAccountPage,StudioTeamPage,StudioBillingPage } from './src/client/Pages' with { type: 'ref' };
 import { LoginPage, SignupPage, RequestPasswordResetPage, PasswordResetPage, EmailVerificationPage } from './src/auth/Pages' with { type: 'ref' };
 import { GoogleCallbackPage } from './src/auth/GoogleCallbackPage' with { type: 'ref' };
@@ -46,6 +47,8 @@ export default app({
     route('LandingRoute', '/', page(LandingPage)),
     route('PricingRoute','/pricing',page(PricingPage)),
     route('HelpRoute','/help',page(HelpPage)),
+    route('ToolsIndexRoute','/tools',page(ToolsIndexPage)),
+    route('FreeToolRoute','/tools/:slug',page(FreeToolPage)),
     route('TermsRoute','/terms',page(TermsPage)),
     route('PrivacyRoute','/privacy',page(PrivacyPage)),
     route('WorkspaceRoute', '/app', page(WorkspaceEntryPage, {authRequired: true})),

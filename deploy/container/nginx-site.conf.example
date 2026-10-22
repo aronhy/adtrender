@@ -88,6 +88,6 @@ server {
         try_files $uri =404;
     }
     location / {
-        try_files $uri /200.html;
+        try_files $uri $uri/index.html /200.html;
     }
 }
