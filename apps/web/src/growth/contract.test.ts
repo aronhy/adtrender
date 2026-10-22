@@ -4,6 +4,18 @@ import { growthContext, currentGrowthToken, growthContextMiddleware } from './co
 
 const token = 'A'.repeat(43);
 describe('first-party consent boundary', () => {
+  it('allows canonical tool page and CTA events while rejecting input values and nonready tool routes', () => {
+    const requestNonce = 'c5712813-5554-4c30-a3b7-f8244c936def';
+    expect(eventInput.safeParse({ name: 'CTA_CLICK', pathname: '/tools/ad-finder', target: 'signup', requestNonce }).success).toBe(true);
+    for (const pathname of ['/tools/evil', '/tools/shopify-app-detector', '/tools/ad-finder/', '/tools/ad-finder?brand=private', '/tools/ad-finder#private']) {
+      expect(eventInput.safeParse({ name: 'PAGE_VIEW', pathname, requestNonce }).success).toBe(false);
+      expect(consentInput.safeParse({ choice: 'accepted', attribution: { landingPath: pathname } }).success).toBe(false);
+    }
+    for (const input of [{ revenue: '12345' }, { hook: 'PRIVATE-HOOK' }, { brand: 'PRIVATE-BRAND' }, { result: 'PRIVATE-RESULT' }]) {
+      expect(eventInput.safeParse({ name: 'PAGE_VIEW', pathname: '/tools/ad-finder', requestNonce, ...input }).success).toBe(false);
+      expect(consentInput.safeParse({ choice: 'accepted', attribution: { landingPath: '/tools/ad-finder', ...input } }).success).toBe(false);
+    }
+  });
   it('uses complete UTM labels first, marks partial labels unknown, and identifies safe external referrals', () => {
     expect(normalizeAttribution({ landingPath: '/', source: 'newsletter', medium: 'email', referrerOrigin: 'https://google.com' })).toMatchObject({ source: 'newsletter', medium: 'email' });
     expect(normalizeAttribution({ landingPath: '/', source: 'newsletter' })).toMatchObject({ source: 'newsletter', medium: 'unknown' });

@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { DomainError } from '../team/access';
 import { isIP } from 'node:net';
+import { freeToolPaths } from '../shared/free-tools';
 
 export const GROWTH_ORIGIN = 'https://adtrender.com';
 export const GROWTH_COOKIE = '__Host-adtrender-growth';
 export const GROWTH_LIFETIME_MS = 30 * 86400_000;
 export const GROWTH_CONSENT_VERSION = 'website-analytics.v2';
-const publicPath = z.enum(['/', '/pricing', '/help', '/terms', '/privacy']);
+const publicPath = z.enum(['/', '/pricing', '/help', '/terms', '/privacy', ...freeToolPaths]);
 const label = z.string().regex(/^[a-z][a-z\d._-]{0,79}$/i).refine(value => !/[a-f\d]{24,}/i.test(value));
 const referrer = z.string().max(253).refine(value => {
   try { const url = new URL(value); return url.protocol === 'https:' && url.origin === value && !url.username && !url.password && !isIP(url.hostname.replace(/^\[|\]$/g, '')) && url.hostname.includes('.'); } catch { return false; }

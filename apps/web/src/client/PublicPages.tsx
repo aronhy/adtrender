@@ -26,7 +26,7 @@ export function HelpPage() {
     ['怎样取消或变更套餐？', '由组织所有者在团队与设置页面操作。取消在已付周期结束时生效，变更套餐预约到下个周期；账单与收据不等同于本地税务发票。'],
     ['怎样反馈问题或申请删除数据？', '登录后打开团队与设置，提交问题反馈或数据删除申请。请勿在反馈里填写密码、密钥或其他账号凭证。'],
   ];
-  return <main className="site-document"><PageHeader eyebrow="帮助中心" title="把第一条研究流程走通。" description="从注册、团队协作到资料来源，这里说明工作台的使用边界。" /><div className="help-steps"><span>创建工作区</span><ArrowRight size={16} /><span>搜索与查看</span><ArrowRight size={16} /><span>收藏与分析</span></div><FaqAccordion defaultOpen={0} items={questions.map(([question,answer])=>({question,answer:<p>{answer}</p>}))} /><div className="document-action"><Link className="button primary" to="/app/settings#feedback">提交反馈</Link><Link to="/app">进入工作台 →</Link></div></main>;
+  return <main className="site-document"><PageHeader eyebrow="帮助中心" title="把第一条研究流程走通。" description="从注册、团队协作到资料来源，这里说明工作台的使用边界。" /><div className="help-steps"><span>创建工作区</span><ArrowRight size={16} /><span>搜索与查看</span><ArrowRight size={16} /><span>收藏与分析</span></div><FaqAccordion defaultOpen={0} items={questions.map(([question,answer])=>({question,answer:<p>{answer}</p>}))} /><div className="document-action"><Link className="button primary" to="/app/settings#feedback">提交反馈</Link><Link to="/app">进入工作台 →</Link></div><section id="free-tools" className="prose"><h2>免费工具</h2><p>计算广告回报与成本，整理广告开头，查找研究入口。</p><p><Link to="/tools">打开免费工具目录 →</Link></p></section></main>;
 }
 export function TermsPage() {
   return <LegalPage title="服务条款" intro="测试阶段说明。运营主体、正式收费条款与争议处理信息将在正式开放前补齐并提示确认。" sections={[

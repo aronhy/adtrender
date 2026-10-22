@@ -24,6 +24,7 @@
     "@aws-sdk/s3-request-presigner": "3.1000.0",
     "@prisma/client": "5.19.1",
     "@radix-ui/react-slot": "1.2.4",
+    "big.js": "7.0.1",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "0.525.0",
@@ -41,6 +42,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.1",
+    "@types/big.js": "7.0.0",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
     "@types/nodemailer": "7.0.11",

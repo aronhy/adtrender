@@ -1,12 +1,15 @@
+import { isFreeToolPath } from '../../shared/free-tools';
+
 export type GrowthAttribution = { landingPath: string; source?: string; medium?: string; campaign?: string; content?: string; referrerOrigin?: string };
 export type GrowthStatus = 'idle' | 'active' | 'unavailable' | 'revocation_pending';
 const paths = new Set(['/', '/pricing', '/help', '/terms', '/privacy']);
+const isPublicPath = (path: string) => paths.has(path) || isFreeToolPath(path);
 const pendingKey = 'adtrender.growth.revoke.v2';
 /** The first-party cookie is issued only by the server. This removable marker
  * also makes withdrawal effective for business requests while offline. */
 export function createGrowthCapture(window: Window, attribution: GrowthAttribution | null) {
   const production = window.location.origin === 'https://adtrender.com';
-  const publicDocument = production && paths.has(window.location.pathname);
+  const publicDocument = production && isPublicPath(window.location.pathname);
   let active = false, admitted = false, version = 0, status: GrowthStatus = 'idle';
   let consentQueue = Promise.resolve();
   const events = new Set<Promise<void>>();
@@ -53,7 +56,7 @@ export function createGrowthCapture(window: Window, attribution: GrowthAttributi
     });
   }
   function event(name: 'PAGE_VIEW' | 'CTA_CLICK', pathname: string, target?: 'signup' | 'login' | 'pricing') {
-    if (!publicDocument || !active || !paths.has(pathname)) return;
+    if (!publicDocument || !active || !isPublicPath(pathname)) return;
     const attempt = version;
     const requestNonce = window.crypto.randomUUID();
     // Admission is ordered, delivery is independent: a slow page view must not
