@@ -74,12 +74,17 @@ test('the actual CLI restores PostgreSQL, private research and all referenced S3
       const value = values.get(key); if (!value) return error(404, 'NoSuchKey');
       res.writeHead(200, { 'content-type': value.contentType, 'content-length': value.bytes.length }); res.end(value.bytes); return;
     }
+    if (req.method === 'DELETE' && bucket === targetBucket && key.startsWith('.adtrender-restore-probe/')) {
+      values.delete(key); res.writeHead(204); res.end(); return;
+    }
     if (req.method === 'PUT') {
       if (bucket === sourceBucket) { sourcePuts++; return error(403, 'AccessDenied'); }
       if (req.headers['if-none-match'] !== '*') return error(400, 'MissingPrecondition');
       if (values.has(key)) return error(412, 'PreconditionFailed');
       const chunks = []; for await (const chunk of req) chunks.push(chunk);
-      values.set(key, { bytes: Buffer.concat(chunks), contentType: req.headers['content-type'] }); targetPuts++; res.writeHead(200, { ETag: '"fixture"' }); res.end(); return;
+      values.set(key, { bytes: Buffer.concat(chunks), contentType: req.headers['content-type'] });
+      if (!key.startsWith('.adtrender-restore-probe/')) targetPuts++;
+      res.writeHead(200, { ETag: '"fixture"' }); res.end(); return;
     }
     error(405, 'MethodNotAllowed');
   });

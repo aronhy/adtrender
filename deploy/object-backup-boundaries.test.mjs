@@ -17,12 +17,13 @@ const targetIdentity = { bucket: 'boundary-restore', endpoint: 'http://127.0.0.1
 function memoryStore(initial = []) {
   const objects = new Map(initial), writes = []; let reads = 0;
   return { objects, writes, reads: () => reads,
-    async get(key) { reads++; const item = objects.get(key); if (!item) throw new Error('SECRET_PROVIDER_RESPONSE'); return { body: item.bytes, contentType: item.mimeType }; },
+    async get(key) { reads++; const item = objects.get(key); if (!item) throw Object.assign(new Error('SECRET_PROVIDER_RESPONSE'), { $metadata: { httpStatusCode: 404 } }); return { body: item.bytes, contentType: item.mimeType }; },
+    async delete(key) { assert(key.startsWith('.adtrender-restore-probe/')); objects.delete(key); },
     async list() { return [...objects.keys()]; },
     async put(key, stream, options) {
-      assert.equal(options.ifNoneMatch, '*'); if (objects.has(key)) throw new Error('SECRET_PRECONDITION');
-      const parts = []; for await (const part of stream) parts.push(Buffer.from(part));
-      writes.push(key); objects.set(key, { bytes: Buffer.concat(parts), mimeType: options.contentType });
+      assert.equal(options.ifNoneMatch, '*'); if (objects.has(key)) throw Object.assign(new Error('SECRET_PRECONDITION'), { $metadata: { httpStatusCode: 412 } });
+      const parts = []; for await (const part of stream instanceof Uint8Array ? [stream] : stream) parts.push(Buffer.from(part));
+      if (!key.startsWith('.adtrender-restore-probe/')) writes.push(key); objects.set(key, { bytes: Buffer.concat(parts), mimeType: options.contentType });
     },
   };
 }
@@ -93,8 +94,10 @@ test('rejects symlink archive roots, object directories, manifests and content f
 test('a conditional PUT race is accepted only when GET returns exactly the archived bytes', async t => {
   for (const corrupt of [false, true]) {
     const f = await fixture(t); await f.backup();
+    const put = f.targetStore.put;
     f.targetStore.put = async (key, stream, options) => {
-      assert.equal(options.ifNoneMatch, '*'); const parts = []; for await (const part of stream) parts.push(Buffer.from(part));
+      if (key.startsWith('.adtrender-restore-probe/')) return put(key, stream, options);
+      assert.equal(options.ifNoneMatch, '*'); const parts = []; for await (const part of stream instanceof Uint8Array ? [stream] : stream) parts.push(Buffer.from(part));
       f.targetStore.objects.set(key, { bytes: corrupt ? Buffer.from('wrong bytes') : Buffer.concat(parts), mimeType: options.contentType });
       throw new Error('SECRET_PRECONDITION_FAILED');
     };
@@ -112,7 +115,7 @@ test('a completed receipt cannot hide a missing target object or authorize repai
 
 test('extra target keys introduced while restoring prevent completion', async t => {
   const f = await fixture(t); await f.backup(); const put = f.targetStore.put;
-  f.targetStore.put = async (...args) => { await put(...args); f.targetStore.objects.set('unrelated', { bytes: Buffer.from('private'), mimeType: 'text/plain' }); };
+  f.targetStore.put = async (...args) => { await put(...args); if (!args[0].startsWith('.adtrender-restore-probe/')) f.targetStore.objects.set('unrelated', { bytes: Buffer.from('private'), mimeType: 'text/plain' }); };
   await assert.rejects(f.restore(), /OBJECT_RESTORE_TARGET_NOT_ISOLATED/);
   const receiptPath = (await readdir(f.archiveDirectory)).find(name => /^restore-.*\.json$/.test(name));
   assert.equal(JSON.parse(await readFile(join(f.archiveDirectory, receiptPath), 'utf8')).status, 'IN_PROGRESS');

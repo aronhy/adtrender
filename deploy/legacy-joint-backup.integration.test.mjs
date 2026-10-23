@@ -64,12 +64,15 @@ for (const hasObservation of [true, false]) test(`a public legacy import ${hasOb
       const value = values.get(key); if (!value) return error(404, 'NoSuchKey');
       res.writeHead(200, { 'content-type': value.mimeType, 'content-length': value.bytes.length }); res.end(value.bytes); return;
     }
+    if (req.method === 'DELETE' && bucket === targetBucket && key.startsWith('.adtrender-restore-probe/')) {
+      values.delete(key); res.writeHead(204); res.end(); return;
+    }
     if (req.method === 'PUT') {
       if (req.headers['if-none-match'] !== '*') return error(400, 'MissingPrecondition');
       if (values.has(key)) return error(412, 'PreconditionFailed');
       const chunks = []; for await (const chunk of req) chunks.push(chunk);
       values.set(key, { bytes: Buffer.concat(chunks), mimeType: req.headers['content-type'] });
-      if (bucket === sourceBucket) sourcePuts++; else targetPuts++;
+      if (bucket === sourceBucket) sourcePuts++; else if (!key.startsWith('.adtrender-restore-probe/')) targetPuts++;
       res.writeHead(200, { ETag: '"fixture"' }); res.end(); return;
     }
     error(405, 'MethodNotAllowed');
