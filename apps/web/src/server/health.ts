@@ -4,10 +4,14 @@ import type { PrismaClient } from '@prisma/client';
 export async function operationalHealth(db: PrismaClient) {
   try {
     await db.$queryRaw`SELECT 1`;
+    const now = new Date();
     const [workers, source, staleMail] = await Promise.all([
       db.workerHeartbeat.findMany({ where: { lastSeenAt: { gt: new Date(Date.now() - 90000) }, status: { not: 'STOPPED' } }, select: { capabilities: true } }),
       db.dataSource.findUnique({ where: { key: 'meta_ad_library' }, select: { status: true, lastSuccessfulAt: true, lastErrorCode: true } }),
-      db.emailDelivery.count({ where: { OR: [{ status: 'UNKNOWN' }, { status: 'FAILED' }, { status: 'QUEUED', createdAt: { lt: new Date(Date.now() - 300000) } }] } }),
+      db.emailDelivery.count({ where: {
+        OR: [{ status: 'UNKNOWN' }, { status: 'FAILED' }, { status: 'QUEUED', createdAt: { lt: new Date(now.valueOf() - 300000) } }],
+        AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, { OR: [{ payloadExpiresAt: null }, { payloadExpiresAt: { gt: now } }] }],
+      } }),
     ]);
     const worker = workers.some(row => row.capabilities.includes('collection') && row.capabilities.includes('mail')) ? 'ok' : 'unavailable';
     const sourceStatus = !source ? 'unconfigured' : source.status !== 'ACTIVE' ? 'paused' : source.lastErrorCode ? 'error' : !source.lastSuccessfulAt || Date.now() - source.lastSuccessfulAt.valueOf() > 86400000 ? 'stale' : 'ok';

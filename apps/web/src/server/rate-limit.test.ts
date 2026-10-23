@@ -2,9 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { consumeRateLimit } from './rate-limit';
-const db = new PrismaClient({datasources:{db:{url:process.env.SAAS_TEST_DATABASE_URL ?? 'postgresql://saas_local@127.0.0.1:55438/saas_test'}}});
+const testUrl = process.env.SAAS_TEST_DATABASE_URL;
+const databaseUrl = testUrl ?? 'postgresql://unused@127.0.0.1:1/not_run';
+const db = new PrismaClient({datasources:{db:{url:databaseUrl}}});
 afterAll(()=>db.$disconnect());
-it('enforces a shared concurrent limit while separating scopes and excluding raw identities',async()=>{
+it.skipIf(!testUrl)('enforces a shared concurrent limit while separating scopes and excluding raw identities',async()=>{
   const principal=`sensitive-${randomUUID()}@example.org`, now=new Date('2026-10-04T12:00:01Z');
   const results=await Promise.allSettled(Array.from({length:8},()=>consumeRateLimit(db,'LOGIN',principal,{limit:3,windowMs:60000},now)));
   expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(3);
@@ -14,8 +16,8 @@ it('enforces a shared concurrent limit while separating scopes and excluding raw
   const rows=await db.rateLimitBucket.findMany({where:{scope:'LOGIN',windowStart:new Date('2026-10-04T12:00:00Z')}});
   expect(JSON.stringify(rows)).not.toContain(principal);
 });
-it('counts every simultaneous first request from independent clients without leaking unique-key errors',async()=>{
-  const other=new PrismaClient({datasources:{db:{url:process.env.SAAS_TEST_DATABASE_URL ?? 'postgresql://saas_local@127.0.0.1:55438/saas_test'}}});
+it.skipIf(!testUrl)('counts every simultaneous first request from independent clients without leaking unique-key errors',async()=>{
+  const other=new PrismaClient({datasources:{db:{url:databaseUrl}}});
   const scope=`CONCURRENT_${randomUUID()}`,now=new Date();
   try {
     for(let round=0;round<8;round++) {

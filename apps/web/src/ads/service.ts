@@ -19,8 +19,8 @@ const platformValues:Record<AdPlatform,string[]>={
   tiktok:['TIKTOK','TikTok','tiktok'],
   snapchat:['SNAPCHAT','Snapchat','snapchat'],
 };
-/** Source dates are independent from collection observations. Date-only bounds include the whole UTC day. */
-function startedDate(value:unknown,endOfDay=false):string|null {
+/** Normalize each independent date filter; date-only bounds include the whole UTC day. */
+function searchDate(value:unknown,endOfDay=false):string|null {
   if(value===undefined||value==='')return null;
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2}))?$/.test(value))throw new DomainError(400,'INVALID_SEARCH_DATE');
   const day=value.slice(0,10);const calendar=new Date(`${day}T00:00:00.000Z`);
@@ -45,11 +45,11 @@ function filters(input:AdSearchInput) {
   if((input.exclude?.length??0)>200||(input.category?.length??0)>100)throw new DomainError(400,'INVALID_SEARCH_TEXT');
   let domain:string|null=null;
   if(input.domain){try{if(typeof input.domain!=='string')throw new Error();const u=new URL(input.domain.includes('://')?input.domain:'https://'+input.domain);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||u.port||u.pathname!=='/'||u.search||u.hash||!u.hostname.includes('.')||u.hostname.length>253||u.hostname.split('.').some(part=>!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(part)))throw new Error();domain=u.hostname.toLowerCase().replace(/^www\./,'');}catch{throw new DomainError(400,'INVALID_SEARCH_DOMAIN');}}
-  const startedFrom=startedDate(input.startedFrom);const startedTo=startedDate(input.startedTo,true);
+  const startedFrom=searchDate(input.startedFrom);const startedTo=searchDate(input.startedTo,true);
   if(startedFrom&&startedTo&&Date.parse(startedFrom)>Date.parse(startedTo))throw new DomainError(400,'INVALID_SEARCH_DATE_RANGE');
-  for(const value of [input.observedFrom,input.observedTo])if(value&&Number.isNaN(Date.parse(value)))throw new DomainError(400,'INVALID_SEARCH_DATE');
-  if(input.observedFrom&&input.observedTo&&Date.parse(input.observedFrom)>Date.parse(input.observedTo))throw new DomainError(400,'INVALID_SEARCH_DATE_RANGE');
-  return {limit,source:input.source??null,channel:input.channel??null,domain,business:input.business??null,category:input.category?.trim()||null,contentStatus:input.contentStatus??null,exact:input.exact??false,exclude:input.exclude?.trim()||null,keyword:input.keyword?.trim()||null,advertiser:input.advertiser?.trim()||null,country:input.country??null,mediaType:input.mediaType??'all',status:input.status??'all',observedFrom:input.observedFrom?new Date(input.observedFrom).toISOString():null,observedTo:input.observedTo?new Date(input.observedTo).toISOString():null,platform:input.platform??null,startedFrom,startedTo};
+  const observedFrom=searchDate(input.observedFrom);const observedTo=searchDate(input.observedTo,true);
+  if(observedFrom&&observedTo&&Date.parse(observedFrom)>Date.parse(observedTo))throw new DomainError(400,'INVALID_SEARCH_DATE_RANGE');
+  return {limit,source:input.source??null,channel:input.channel??null,domain,business:input.business??null,category:input.category?.trim()||null,contentStatus:input.contentStatus??null,exact:input.exact??false,exclude:input.exclude?.trim()||null,keyword:input.keyword?.trim()||null,advertiser:input.advertiser?.trim()||null,country:input.country??null,mediaType:input.mediaType??'all',status:input.status??'all',observedFrom,observedTo,platform:input.platform??null,startedFrom,startedTo};
 }
 function decodeCursor(value:string,filterHash:string):Cursor {
   try {if(value.length>2048)throw new Error();const cursor=JSON.parse(Buffer.from(value,'base64url').toString('utf8')) as Cursor;if(cursor.v!==1||typeof cursor.id!=='string'||!cursor.id||cursor.id.length>100||cursor.filterHash!==filterHash||typeof cursor.asOf!=='string'||Number.isNaN(Date.parse(cursor.asOf))||(cursor.at!==null&&(typeof cursor.at!=='string'||Number.isNaN(Date.parse(cursor.at)))))throw new Error();return cursor;}catch{throw new DomainError(400,'INVALID_SEARCH_CURSOR');}

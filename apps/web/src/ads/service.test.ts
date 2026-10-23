@@ -26,6 +26,15 @@ describe.skipIf(!testUrl)('PostgreSQL ad search cursor and field semantics',()=>
     const page=await searchAds(db,{userId,workspaceId,keyword:token,country:'US',mediaType:'video',status:'active',observedFrom:'2026-10-03T00:00:00Z',observedTo:'2026-10-03T23:59:59Z'});expect(page.total).toBe(1);expect(page.ads.map(ad=>ad.id)).toEqual([ads[0].id]);expect(page.countryScope).toBe('query');
     expect((await searchAds(db,{userId,workspaceId,keyword:token,country:'GB'})).total).toBe(0);expect((await searchAds(db,{userId,workspaceId,keyword:token,mediaType:'image'})).ads[0].id).toBe(ads[0].id);
   });
+  it('includes the entire UTC observation end day while preserving explicit timestamp bounds',async()=>{
+    const input={userId,workspaceId,keyword:token,observedFrom:'2026-10-03',observedTo:'2026-10-03'};
+    const page=await searchAds(db,input);
+    expect(page.ads.map(ad=>ad.id)).toEqual([ads[0].id]);
+    expect((await searchAds(db,{...input,observedTo:'2026-10-03T11:59:59.999Z'})).total).toBe(0);
+    expect((await searchAds(db,{...input,observedTo:'2026-10-03T12:00:00.000Z'})).total).toBe(1);
+    for(const observedTo of ['2026-02-30','invalid'])await expect(searchAds(db,{...input,observedTo})).rejects.toMatchObject({code:'INVALID_SEARCH_DATE'});
+    await expect(searchAds(db,{...input,observedFrom:'2026-10-04'})).rejects.toMatchObject({code:'INVALID_SEARCH_DATE_RANGE'});
+  });
   it('aggregates the entire filtered set with mixed media counted per advertisement and unknown dates preserved',async()=>{
     const first=await searchAds(db,{userId,workspaceId,keyword:token,limit:1});
     const recent=when.valueOf()>=Date.parse(first.asOf)-7*86400000?3:0;
