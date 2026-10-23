@@ -9,7 +9,6 @@ AdTrender 使用 Open SaaS / Wasp 登录基座，组织拥有订阅，工作区�
 | 目录 / 文件 | 用途 |
 | --- | --- |
 | `apps/web/` | Wasp 应用、中文官网与工作台、认证、团队、计费、API、Prisma schema / migrations |
-| `apps/collector/` | 采集 worker、Meta 来源适配与样本测试 |
 | `apps/worker/` | 独立进程主入口，协调采集 / 邮件 / 分析任务 |
 | `packages/contracts/` | 应用与 worker 共享的数据契约 |
 | `scripts/` | 项目工具链包装、构建、数据库与对象联合备份/恢复检查；不调用旧调度 |
@@ -65,6 +64,13 @@ cd ../..
 正式域名 `adtrender.com` 已于 2026-10-07 注册，公网 DNS、HTTPS 与登录页面已通过技术检查，Google 专用客户端已配置，指定 Gmail 账号的真实首次登录与重复登录已通过，见域名接入证据。经营与收款主体、币种、可售价格、退款权益规则及正式邮件 / 存储方案仍须确认。价格未定时页面显示“价格待公布”，不把访谈报价写入可售套餐。API、worker 和第三方凭证只在服务端；日志不得包含密码、邮件链接 token、支付密钥或素材 URL 查询 token。
 
 AdTrender 线上已设置 `GOOGLE_AUTH_ENABLED=true`、`REGISTRATION_MODE=public`，Google 应用为正式版；支持 Google 和邮箱公开注册，无需邀请。仓库示例仍保持保守默认值。实现只请求 `openid`、`email`、`profile`，不复用旧 Google Ads 客户端，不自动合并同邮箱账号；邀请模式下的邀请/allowlist 检查及所有模式下的账号停用校验仍由服务端执行。控制台回调为 `WASP_SERVER_URL` + `/auth/google/callback`，前端 `/login/google/callback` 不是 Google 控制台回调。专用凭据、真实 Google 同意页、指定 Gmail 账号首次/重复登录及退出跳转已验收；其他场景仍按各自证据认定。配置、持久防重放及已知限制见 Google 登录运维说明。
+
+## 采集器
+
+各平台采集器不在本仓库中，单独维护。主程序与采集器之间有两种接入方式：
+
+- **数据库入库函数**：`apps/web/db/ingest/<平台>.sql` 由数据库 owner 安装，为每个平台建立只暴露 `ingest(raw text)` 的 schema，采集节点只拿到该函数的执行权限。批次格式见 `packages/contracts`。
+- **worker 插件**：设置 `COLLECTION_ADAPTER_MODULE=/绝对路径/collector.mjs`，worker 的采集任务会加载该模块导出的 `collect(query, options)`（返回 `CollectionOutcome`），可选导出 `requireSnapshots = true` 要求每条结果附带页面快照。未设置时采集通道保持空闲，其他功能不受影响。
 
 ## Docker Compose 自托管
 

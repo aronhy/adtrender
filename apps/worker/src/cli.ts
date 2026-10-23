@@ -2,8 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import {historyWorkerTick} from './ad-history';
 import { randomUUID } from 'node:crypto';
 import nodemailer from 'nodemailer';
-import { workerTick } from '../../collector/src/worker';
-import { configuredMetaBrowserChannel } from '../../collector/src/meta-adapter';
+import { workerTick } from './collection-tick';
+import { loadCollectionAdapter } from './collection-adapter';
 import { createCollectionQueue } from '../../web/src/collection-admin/queue';
 import { analysisWorkerTick, recoverExpiredAnalysis } from '../../web/src/analysis/worker';
 import { deliverEmailBatch } from '../../web/src/server/email';
@@ -40,7 +40,7 @@ const transport = process.env.SMTP_HOST ? nodemailer.createTransport({
 }) : undefined;
 const storage = process.env.S3_BUCKET && process.env.S3_REGION ? new S3Storage({ bucket: process.env.S3_BUCKET, region: process.env.S3_REGION, endpoint: process.env.S3_ENDPOINT || undefined, forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true', maxAttempts: 1, requestHandler: { requestTimeout: 10000, connectionTimeout: 5000 } }) : undefined;
 const persistEvidence = evidenceWriter();
-const browserChannel = configuredMetaBrowserChannel();
+const collection = await loadCollectionAdapter();
 const seedEvidence=evidenceStoresFromEnvironment();
 const reconcileBilling = createBillingReconciler(db, subscription => billingFromEnvironment(db).reconcileSubscription(subscription), { signal: controller.signal, onFailure: organizationId => log('billing_reconciliation_failed', { organizationId }) });
 const sleep = (ms: number) => new Promise<void>(resolve => { const finish = () => { clearTimeout(timer); controller.signal.removeEventListener('abort', finish); resolve(); }; const timer = setTimeout(finish, ms); controller.signal.addEventListener('abort', finish, { once: true }); if (controller.signal.aborted) finish(); });
@@ -60,7 +60,7 @@ try {
     if (transport && process.env.OUTBOX_ENCRYPTION_KEY) await deliverEmailBatch(db, async message => transport.sendMail({ ...message, from: process.env.EMAIL_FROM, disableFileAccess: true, disableUrlAccess: true }), process.env.OUTBOX_ENCRYPTION_KEY, 5);
   })];
   if (!args.has('--mail-only')) lanes.push(
-    lane('collection', 5000, async () => { const queue = createCollectionQueue(db); await queue.recoverExpired(); await queue.scheduleDue(); const outcome = await workerTick(db, { workerId: `${workerId}:collector`, persistEvidence, signal: controller.signal, browserChannel }); if (!['IDLE', 'CONFIGURATION_REQUIRED'].includes(outcome.status)) log('collection_finished', outcome); }),
+    lane('collection', 5000, async () => { const queue = createCollectionQueue(db); await queue.recoverExpired(); await queue.scheduleDue(); const outcome = await workerTick(db, { workerId: `${workerId}:collector`, persistEvidence, signal: controller.signal, ...collection }); if (!['IDLE', 'CONFIGURATION_REQUIRED'].includes(outcome.status)) log('collection_finished', outcome); }),
     lane('analysis', 3000, async () => { await recoverExpiredAnalysis(db); const outcome = await analysisWorkerTick(db, { workerId: `${workerId}:analysis`, signal: controller.signal }); if (!['IDLE', 'CONFIGURATION_REQUIRED'].includes(outcome.status)) log('analysis_finished', outcome); }),
     lane('media', 3000, async () => { const outcome = await mediaWorkerTick(db, storage, undefined, { signal: controller.signal }); if (!['IDLE', 'CONFIGURATION_REQUIRED'].includes(outcome.status)) log('media_finished', outcome); }),
     lane('history', 5000, async()=>{const outcome=await historyWorkerTick(db,{workerId: `${workerId}:history`,signal:controller.signal});if(outcome.processed||outcome.failed)log('history_finished',outcome);}),
