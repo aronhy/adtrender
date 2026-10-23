@@ -15,20 +15,23 @@ const require = createRequire(join(root, 'apps/web/package.json'));
 const { PrismaClient } = require('@prisma/client');
 const hash = value => createHash('sha256').update(value).digest('hex');
 const baseUrl = process.env.SAAS_BACKUP_TEST_DATABASE_URL;
+if (process.env.CI && !baseUrl) throw new Error('SAAS_BACKUP_TEST_DATABASE_URL is required in CI');
 
 test('the actual CLI restores PostgreSQL, private research and all referenced S3 bytes into isolated targets', { skip: !baseUrl, timeout: 120000 }, async t => {
   const base = new URL(baseUrl);
-  assert(['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname) && /test/.test(base.pathname) && !base.search);
+  assert(['postgres:', 'postgresql:'].includes(base.protocol));
+  assert(['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname)
+    && /(?:^|[_-])(?:test|restore)(?:[_-]|$)/i.test(base.pathname.slice(1)) && !base.search && !base.hash);
   const suffix = randomUUID().replaceAll('-', ''), sourceName = 'saas_joint_source_test_' + suffix, targetName = 'saas_joint_restore_test_' + suffix;
   const sourceUrl = new URL(base); sourceUrl.pathname = '/' + sourceName;
   const targetUrl = new URL(base); targetUrl.pathname = '/' + targetName; targetUrl.password = '';
-  const pgBin = process.env.PG_BIN ?? '/opt/homebrew/opt/postgresql@15/bin';
-  const pgEnv = { PATH: `${pgBin}:${process.env.PATH}`, PGHOST: base.hostname, PGPORT: base.port || '5432', PGUSER: decodeURIComponent(base.username), PGPASSWORD: decodeURIComponent(base.password), PGDATABASE: 'postgres', PGCONNECT_TIMEOUT: '5' };
+  const pgBin = process.env.PG_BIN;
+  const pgEnv = { PATH: pgBin ? `${pgBin}:${process.env.PATH}` : process.env.PATH, PGHOST: base.hostname.replace(/^\[|\]$/g, ''), PGPORT: base.port || '5432', PGUSER: decodeURIComponent(base.username), PGPASSWORD: decodeURIComponent(base.password), PGDATABASE: 'postgres', PGCONNECT_TIMEOUT: '5' };
   const command = async (file, args, env) => {
     try { return (await exec(file, args, { env, timeout: 60000, maxBuffer: 4 * 1024 * 1024 })).stdout.trim(); }
     catch { throw new Error('JOINT_REHEARSAL_COMMAND_FAILED_' + file.split('/').at(-1)); }
   };
-  const sql = (text, database = 'postgres') => command(join(pgBin, 'psql'), ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', text], { ...pgEnv, PGDATABASE: database });
+  const sql = (text, database = 'postgres') => command(pgBin ? join(pgBin, 'psql') : 'psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', text], { ...pgEnv, PGDATABASE: database });
   const temporary = await mkdtemp(join(tmpdir(), 'saas-joint-cli-test-')); const backup = join(temporary, 'database.dump'), archive = join(temporary, 'objects');
   let sourceDb, restoredDb, server;
   t.after(async () => {

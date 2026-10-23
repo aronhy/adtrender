@@ -15,6 +15,7 @@ x-app: &app
     PORT: "3001"
     DATABASE_URL: postgresql://adtrender:${POSTGRES_PASSWORD:?Run scripts/selfhost-init.sh first}@postgres:5432/adtrender
     WASP_WEB_CLIENT_URL: https://${APP_HOST}
+    ADMIN_WEB_CLIENT_URL: https://${ADMIN_HOST:?Set ADMIN_HOST in .env (e.g. admin.example.com)}
     WASP_SERVER_URL: https://${API_HOST}
     JWT_SECRET: ${JWT_SECRET:?}
     OUTBOX_ENCRYPTION_KEY: ${OUTBOX_ENCRYPTION_KEY:?}
@@ -119,6 +120,8 @@ services:
       target: api
       args:
         API_URL: https://${API_HOST:?Run scripts/selfhost-init.sh first}
+        APP_URL: https://${APP_HOST:?}
+        ADMIN_URL: https://${ADMIN_HOST:?}
     user: "1000:1000"
     environment:
       DATABASE_URL: postgresql://adtrender:${POSTGRES_PASSWORD}@postgres:5432/adtrender
@@ -155,9 +158,12 @@ services:
       target: web
       args:
         API_URL: https://${API_HOST}
+        APP_URL: https://${APP_HOST:?}
+        ADMIN_URL: https://${ADMIN_HOST:?}
     restart: unless-stopped
     environment:
       APP_HOST: ${APP_HOST:?}
+      ADMIN_HOST: ${ADMIN_HOST:?}
       API_HOST: ${API_HOST:?}
       S3_HOST: ${S3_HOST:?}
       CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:-}
@@ -181,6 +187,7 @@ services:
         # object URLs work for both the server and the browser.
         aliases:
           - ${APP_HOST}
+          - ${ADMIN_HOST}
           - ${API_HOST}
           - ${S3_HOST}
 
