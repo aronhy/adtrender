@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-25",
+  "source": "prototypes/free-tools-pipiads-2026-10-23",
+  "copyPolicy": "All approved source text is retained verbatim; only a fixed module factory surrounds classic scripts.",
+  "prefix": "// Source copied verbatim from the approved HTML prototype. See provenance.json.\nexport default function initialize(window, document, location, requestAnimationFrame, cancelAnimationFrame, setTimeout, clearTimeout) {\n// BEGIN APPROVED SOURCE\n",
+  "suffix": "\n// END APPROVED SOURCE\n}\n",
+  "files": [
+    {
+      "file": "icons-data.js",
+      "sha256": "14fe3a86a05e3d0009d96504809c1e29857288b6586915b140b58d7c461eff83",
+      "bytes": 27302,
+      "wrapped": true
+    },
+    {
+      "file": "icons.js",
+      "sha256": "ac2aa027334ed2d04e95960fef364978f559b0cc04e66cfab50352853c940124",
+      "bytes": 2241,
+      "wrapped": true
+    },
+    {
+      "file": "calculations.js",
+      "sha256": "5d101d12fb39b088f30cf4a574654faf67a455a4794d0036fa7e1f321798f81f",
+      "bytes": 14168,
+      "wrapped": true
+    },
+    {
+      "file": "policies.js",
+      "sha256": "116076aa89463d999b72dd00450f0aea2f3bec12bf22470c53ac5155cdc4215e",
+      "bytes": 27964,
+      "wrapped": true
+    },
+    {
+      "file": "motion.js",
+      "sha256": "72b7967cf2600d0b42a208e7157453ea1db2829c2de7a4dbd6d890d451cf53ac",
+      "bytes": 3958,
+      "wrapped": true
+    },
+    {
+      "file": "app.js",
+      "sha256": "cd39149246084b93dccb6e6b374cb0a9f83fe95075e735b6142662c280dc8422",
+      "bytes": 51490,
+      "wrapped": true
+    },
+    {
+      "file": "index.html",
+      "sha256": "daae007c2244c67aaf9f88bdd650fae915c399ce720813c0acb53888285b1aab",
+      "bytes": 5661,
+      "wrapped": false
+    },
+    {
+      "file": "styles.css",
+      "sha256": "7252b1b194173df5aae9f61ced629b1d88d6d6d540e3e647245bb334d2380c74",
+      "bytes": 31812,
+      "wrapped": false
+    },
+    {
+      "file": "icons.css",
+      "sha256": "a54b348e1c324bc2f0f2ad9679fc0506a1d9fbbcc1f8fec4d82c816fc099a425",
+      "bytes": 1919,
+      "wrapped": false
+    },
+    {
+      "file": "policies.css",
+      "sha256": "2a51fe714aa2dfbe88a2468b9e6e3e4137ad0742bf1b0a8de898eb39ff489cde",
+      "bytes": 2752,
+      "wrapped": false
+    },
+    {
+      "file": "polish.css",
+      "sha256": "3beb8d6c2c176155b497bb455e7a83c3f713355f792cbc33e6d97d455f300048",
+      "bytes": 30454,
+      "wrapped": false
+    }
+  ]
+}

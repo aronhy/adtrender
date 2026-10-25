@@ -3,7 +3,7 @@ import { createGrowthCapture } from './growth';
 import { isFreeToolPath, readyFreeTools } from '../../shared/free-tools';
 
 const origin = 'https://adtrender.com';
-const pages: Record<string, string> = { '/': 'AdTrender', '/pricing': 'AdTrender · Pricing', '/help': 'AdTrender · Help', '/terms': 'AdTrender · Terms', '/privacy': 'AdTrender · Privacy', '/tools': 'AdTrender · 免费工具', ...Object.fromEntries(readyFreeTools.map(tool => [`/tools/${tool.slug}`, `AdTrender · ${tool.title}`])) };
+const pages: Record<string, string> = { '/': 'AdTrender', '/pricing': 'AdTrender · Pricing', '/help': 'AdTrender · Help', '/terms': 'AdTrender · Terms', '/privacy': 'AdTrender · Privacy', '/tools': 'AdTrender · 免费工具', '/tools/guide': 'AdTrender · 免费工具使用指南', ...Object.fromEntries(readyFreeTools.map(tool => [`/tools/${tool.slug}`, `AdTrender · ${tool.title}`])) };
 const homeAnchors = new Set(['landing-nav', 'main', 'explore', 'details', 'analysis', 'analysis-example', 'collections', 'team', 'how', 'faq']);
 const consentKey = 'adtrender.website-analytics.v2';
 export type Choice = 'accepted' | 'rejected' | null;

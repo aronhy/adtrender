@@ -21,7 +21,7 @@ function fixture(path = tool, referrer = '') {
 describe('free-tool analytics privacy', () => {
   it('uses only the canonical registered tool URL and drops every query attribution field', () => {
     const url = `https://adtrender.com${tool}?revenue=87654.321&hook=PRIVATE-HOOK&brand=PRIVATE-BRAND&utm_source=privatebrand#PRIVATE-RESULT`;
-    expect(publicPage(url)).toEqual({ path: tool, title: 'AdTrender · ROAS 盈亏平衡计算器', url: `https://adtrender.com${tool}` });
+    expect(publicPage(url)).toEqual({ path: tool, title: 'AdTrender · ROAS 与盈亏平衡计算器', url: `https://adtrender.com${tool}` });
     expect(safePublicAddress(url)).toBe(`https://adtrender.com${tool}`);
     expect(safeAttribution(url, 'https://external.test/search?brand=PRIVATE-BRAND')).toEqual({ page_referrer: 'https://external.test/' });
   });
