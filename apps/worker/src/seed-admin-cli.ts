@@ -6,7 +6,7 @@ import {runSeedDispatchAdminCommand} from '../../web/src/seed-library/dispatch-a
 import {importAdvertiserDirectory} from '../../web/src/seed-library/directory';
 import {saveLegacyOwnerIntent} from '../../web/src/seed-library/legacy-owners';
 import {evidenceStoresFromEnvironment} from './seed-control';
-import {readLegacyPending, type PendingPlatform} from '../../collector/src/dispatch/pending-envelope';
+import {readLegacyPending, type PendingPlatform} from './pending-envelope';
 import {collectorEvidenceKey} from './collector-evidence';
 import {seedSourceKeys,type SourceKey} from '../../../packages/contracts/src/seeds';
 const args=process.argv.slice(2),command=args.shift(),flags=new Map<string,string>();

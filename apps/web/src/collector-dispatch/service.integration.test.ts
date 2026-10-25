@@ -15,7 +15,7 @@ beforeAll(async () => {
   if (!url) return;
   const target = new URL(url); if (!['127.0.0.1', 'localhost'].includes(target.hostname) || !target.pathname.includes('_test_')) throw new Error('ISOLATED_TEST_DATABASE_REQUIRED');
   const { PrismaClient } = require('@prisma/client'); db = new PrismaClient({ datasources: { db: { url } } });
-  const sql = ['meta', 'google', 'snapchat', 'tiktok', 'pinterest'].map(source => readFileSync('apps/collector/deploy/' + source + '/ingest.sql', 'utf8').replace(/^GRANT[^\n]*\n/gm, '')).join('\n');
+  const sql = ['meta', 'google', 'snapchat', 'tiktok', 'pinterest'].map(source => readFileSync('apps/web/db/ingest/' + source + '.sql', 'utf8').replace(/^GRANT[^\n]*\n/gm, '')).join('\n');
   execFileSync('psql', [url.split('?')[0], '-X', '-v', 'ON_ERROR_STOP=1'], { input: sql, stdio: ['pipe', 'pipe', 'pipe'] });
 });
 afterAll(async () => { await db?.$disconnect(); });

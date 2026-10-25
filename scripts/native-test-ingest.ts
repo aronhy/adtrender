@@ -7,7 +7,7 @@ type Environment = Record<string, string | undefined>;
 export type NativeIngestSetupOptions = { input: string; stdio: ['pipe', 'pipe', 'pipe']; env: Record<string, string> };
 export type NativeIngestSetupIO = { read: (path: string) => string; execute: (binary: string, args: string[], options: NativeIngestSetupOptions) => unknown };
 export const nativeIngestSqlPaths = ['meta', 'google', 'snapchat', 'tiktok', 'pinterest'].map(source =>
-  fileURLToPath(new URL(`../apps/collector/deploy/${source}/ingest.sql`, import.meta.url)));
+  fileURLToPath(new URL(`../apps/web/db/ingest/${source}.sql`, import.meta.url)));
 
 function ownedDatabase(env: Environment): URL | null {
   const value = env.SAAS_TEST_DATABASE_URL;

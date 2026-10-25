@@ -33,7 +33,7 @@ describe('owned isolated native ingestion test prerequisites', () => {
   });
   it('installs all five existing SQL files once, strips collector-role grants, and isolates the psql environment', () => {
     const io = { read: vi.fn((path: string) => `-- ${path}\nCREATE SCHEMA test_fixture;\nGRANT EXECUTE ON FUNCTION test_fixture.ingest(text) TO collector_role;\nREVOKE ALL ON SCHEMA test_fixture FROM PUBLIC;\n`), execute: vi.fn<NativeIngestSetupIO['execute']>() };
-    expect(nativeIngestSqlPaths.map(path => path.split('/').slice(-2).join('/'))).toEqual(['meta/ingest.sql', 'google/ingest.sql', 'snapchat/ingest.sql', 'tiktok/ingest.sql', 'pinterest/ingest.sql']);
+    expect(nativeIngestSqlPaths.map(path => path.split('/').slice(-2).join('/'))).toEqual(['ingest/meta.sql', 'ingest/google.sql', 'ingest/snapchat.sql', 'ingest/tiktok.sql', 'ingest/pinterest.sql']);
     expect(installNativeTestIngest({ ...owned, PGPASSWORD: 'never-inherit', PGSERVICE: 'production', HOME: '/private-home' }, io)).toEqual({ skipped: false });
     expect(io.read.mock.calls.map(call => call[0])).toEqual(nativeIngestSqlPaths);
     expect(io.execute).toHaveBeenCalledOnce();
