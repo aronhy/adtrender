@@ -52,7 +52,7 @@ describe('website analytics SSR hydration', () => {
       expect(label.control).toBe(host.querySelector(`[id="${label.htmlFor}"]`));
       expect(label.control).not.toBeNull();
     }
-    expect(host.querySelector('[aria-label="网站统计选择"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="网站统计选择"]')).toBeNull();
     expect(document.scripts.length).toBe(0);
   });
 

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="AdTrender 免费工具本地交互预览。">
+  <title>免费电商与广告工具 · AdTrender</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="icons.css">
+  <link rel="stylesheet" href="policies.css">
+  <link rel="stylesheet" href="polish.css">
+  <script src="icons-data.js" defer></script>
+  <script src="icons.js" defer></script>
+  <script src="calculations.js" defer></script>
+  <script src="policies.js" defer></script>
+  <script src="motion.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#/" aria-label="AdTrender 免费工具首页">
+        <svg class="brand-mark" width="26" height="24" viewBox="0 0 104 96" aria-hidden="true"><path fill="#ff6b32" d="M8 88 52 8H75L96 88H71L64 61 73 52H56L65 30 31 62H47L34 88Z"/></svg><strong>AdTrender</strong>
+      </a>
+      <nav class="desktop-nav" aria-label="主导航">
+        <button type="button" class="nav-link" data-workspace>广告资料库 <span class="tiny-arrow" data-ui-icon="external"></span></button>
+        <a class="nav-link active" href="#/">免费工具 <span class="free-tag">FREE</span></a>
+        <a class="nav-link" href="#/guide">使用指南</a>
+      </nav>
+      <div class="header-actions"><span class="preview-label">本地预览</span><button type="button" class="header-cta" data-workspace>打开工作区 <span data-ui-icon="external"></span></button><button class="mobile-menu" type="button" aria-label="打开菜单" aria-expanded="false" data-ui-icon="menu"></button></div>
+    </div>
+    <nav class="mobile-nav" aria-label="手机导航" hidden><a href="#/">全部免费工具</a><a href="#/guide">使用指南</a><button type="button" data-workspace>打开工作区 ↗</button></nav>
+  </header>
+  <main id="main" tabindex="-1"></main>
+  <section class="cta-band" aria-labelledby="cta-title">
+    <h2 id="cta-title">在 AdTrender 广告资料库，<span class="accent">找到能跑量的广告</span></h2>
+    <ul class="cta-points"><li>按关键词搜索广告</li><li>查看广告主和投放素材</li><li>收藏素材，记录笔记</li></ul>
+    <button type="button" class="button button-primary cta-button" data-workspace>免费试用广告资料库</button>
+  </section>
+  <footer class="site-footer">
+    <div class="footer-content">
+      <div class="footer-main">
+        <div class="footer-about">
+          <a class="footer-brand" href="#/" aria-label="AdTrender 免费工具首页"><svg width="40" height="37" viewBox="0 0 104 96" aria-hidden="true"><path fill="#ff6b32" d="M8 88 52 8H75L96 88H71L64 61 73 52H56L65 30 31 62H47L34 88Z"/></svg><strong>AdTrender</strong></a>
+          <p class="footer-tagline">Find your next winning ad</p>
+        </div>
+        <nav class="footer-cols" aria-label="页脚导航">
+          <div><h2>计算工具</h2><a href="#/tools/roas-calculator">ROAS 计算器</a><a href="#/tools/ecommerce-profit-calculator">电商利润计算器</a><a href="#/tools/cpa-calculator">CPA 获客成本</a><a href="#/tools/ad-budget-calculator">广告预算计算器</a></div>
+          <div><h2>投放工具</h2><a href="#/tools/hook-generator">广告 Hook 模板</a><a href="#/tools/ad-finder">官方广告库入口</a><a href="#/tools/utm-link-builder">UTM 链接生成器</a></div>
+          <div><h2>店铺政策</h2><a href="#/tools/privacy-policy-generator">隐私政策模板</a><a href="#/tools/refund-policy-generator">退款政策模板</a><a href="#/tools/returns-policy-generator">退换货政策模板</a><a href="#/tools/shipping-policy-generator">配送政策模板</a></div>
+          <div><h2>支持</h2><a href="#/guide">使用指南</a><a href="#/">全部免费工具</a><a href="icons.html#compare">图标样式参考</a></div>
+        </nav>
+      </div>
+      <div class="footer-meta"><span>© 2026 AdTrender · 本地预览</span><button type="button" data-workspace>开始研究</button></div>
+    </div>
+    <img class="footer-panorama" src="https://adtrender.com/ui/assets/antarctic-panorama.webp" alt="" width="2132" height="737" loading="lazy" decoding="async" onerror="this.remove()">
+  </footer>
+  <div class="toast" role="status" aria-live="polite"></div>
+  <dialog id="workspace-dialog" class="preview-dialog"><button type="button" class="dialog-close" aria-label="关闭" data-ui-icon="close"></button><div class="dialog-icon" data-ui-icon="external"></div><h2>广告资料库暂未接入</h2><p>正式版会打开 AdTrender 工作区，登录后可搜索广告。当前为本地预览，未连接账号和数据。</p><div class="dialog-feature"><span>广告资料库</span><span>广告主研究</span><span>收藏与笔记</span></div><button type="button" class="button button-primary dialog-return">继续使用免费工具</button></dialog>
+  <dialog id="policy-regenerate-dialog" class="preview-dialog"><h2>要重新生成吗？</h2><p>重新生成会按最新资料重写正文，你的手动修改会被覆盖。</p><div class="policy-confirm-actions"><button type="button" class="button button-secondary" data-policy-keep>保留修改</button><button type="button" class="button button-primary" data-policy-replace>重新生成</button></div></dialog>
+  <noscript><div class="noscript-note">请开启 JavaScript 后使用。</div></noscript>
+</body>
+</html>

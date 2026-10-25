@@ -1,0 +1,199 @@
+{
+  "retrieved_utc": "2026-10-23T07:14:04.142819+00:00",
+  "families": {
+    "tabler": {
+      "repository": "https://github.com/tabler/tabler-icons",
+      "commit": "a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d",
+      "branch": "main",
+      "license": {
+        "family": "tabler",
+        "key": "LICENSE",
+        "path": "tabler/LICENSE",
+        "source_url": "https://raw.githubusercontent.com/tabler/tabler-icons/a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d/LICENSE",
+        "repository": "https://github.com/tabler/tabler-icons",
+        "commit": "a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d",
+        "bytes": 1073,
+        "sha256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",
+        "name": "MIT",
+        "copyright": "Copyright (c) 2020-2026 Paweł Kuna"
+      }
+    },
+    "lucide": {
+      "repository": "https://github.com/lucide-icons/lucide",
+      "commit": "20aef31db93fe4d9f398dbb15b120d99c48eef95",
+      "branch": "main",
+      "license": {
+        "family": "lucide",
+        "key": "LICENSE",
+        "path": "lucide/LICENSE",
+        "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/20aef31db93fe4d9f398dbb15b120d99c48eef95/LICENSE",
+        "repository": "https://github.com/lucide-icons/lucide",
+        "commit": "20aef31db93fe4d9f398dbb15b120d99c48eef95",
+        "bytes": 3208,
+        "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
+        "name": "ISC and MIT (Feather-derived icons listed in LICENSE)",
+        "copyright": "Copyright (c) 2026 Lucide Icons and Contributors\nCopyright (c) 2013-present Cole Bemis"
+      }
+    }
+  },
+  "validation": "XML element allowlist; no script, event handlers, foreignObject, external references or external entity declarations. Original SVG bytes preserved.",
+  "assets": [
+    {
+      "family": "lucide",
+      "key": "chart-no-axes-combined",
+      "path": "lucide/chart-no-axes-combined.svg",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/20aef31db93fe4d9f398dbb15b120d99c48eef95/icons/chart-no-axes-combined.svg",
+      "repository": "https://github.com/lucide-icons/lucide",
+      "commit": "20aef31db93fe4d9f398dbb15b120d99c48eef95",
+      "bytes": 432,
+      "sha256": "2f8a708c357488cfde7428d9b055b9bb4a99c08dc71e9296da03ecc19291c4ab",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "ISC"
+    },
+    {
+      "family": "lucide",
+      "key": "link",
+      "path": "lucide/link.svg",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/20aef31db93fe4d9f398dbb15b120d99c48eef95/icons/link.svg",
+      "repository": "https://github.com/lucide-icons/lucide",
+      "commit": "20aef31db93fe4d9f398dbb15b120d99c48eef95",
+      "bytes": 359,
+      "sha256": "4f3237183dcaabfac92f4e94c776a9a9e45c3c5e77a921061a6b34b61eb5413f",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "MIT"
+    },
+    {
+      "family": "lucide",
+      "key": "panels-top-left",
+      "path": "lucide/panels-top-left.svg",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/20aef31db93fe4d9f398dbb15b120d99c48eef95/icons/panels-top-left.svg",
+      "repository": "https://github.com/lucide-icons/lucide",
+      "commit": "20aef31db93fe4d9f398dbb15b120d99c48eef95",
+      "bytes": 307,
+      "sha256": "321a2a5500f2b814a2e62eb73c4b01dc65c7334fe2e6f7d77517239383e26bb1",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "ISC"
+    },
+    {
+      "family": "lucide",
+      "key": "target",
+      "path": "lucide/target.svg",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/20aef31db93fe4d9f398dbb15b120d99c48eef95/icons/target.svg",
+      "repository": "https://github.com/lucide-icons/lucide",
+      "commit": "20aef31db93fe4d9f398dbb15b120d99c48eef95",
+      "bytes": 314,
+      "sha256": "96a6b16628825a1a207a77e9a5818f74c3e74ea3664783ff5c2a44e6347b90df",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "MIT"
+    },
+    {
+      "family": "lucide",
+      "key": "wallet",
+      "path": "lucide/wallet.svg",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/20aef31db93fe4d9f398dbb15b120d99c48eef95/icons/wallet.svg",
+      "repository": "https://github.com/lucide-icons/lucide",
+      "commit": "20aef31db93fe4d9f398dbb15b120d99c48eef95",
+      "bytes": 387,
+      "sha256": "76c9596f629a2abf9cfabb573452f3113ed7e9502c699aa811e630f156eb7556",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "ISC"
+    },
+    {
+      "family": "lucide",
+      "key": "zap",
+      "path": "lucide/zap.svg",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/20aef31db93fe4d9f398dbb15b120d99c48eef95/icons/zap.svg",
+      "repository": "https://github.com/lucide-icons/lucide",
+      "commit": "20aef31db93fe4d9f398dbb15b120d99c48eef95",
+      "bytes": 390,
+      "sha256": "4c395891eab4d1e5627c5d414a16db037317cb2f12453de0f3a1130964c6d444",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "ISC"
+    },
+    {
+      "family": "tabler",
+      "key": "bolt",
+      "path": "tabler/bolt.svg",
+      "source_url": "https://raw.githubusercontent.com/tabler/tabler-icons/a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d/icons/outline/bolt.svg",
+      "repository": "https://github.com/tabler/tabler-icons",
+      "commit": "a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d",
+      "bytes": 395,
+      "sha256": "5321162cf117d3a83aec6c8f67a3bb0398068edb487b524d280b8fb47d6b98ce",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "MIT"
+    },
+    {
+      "family": "tabler",
+      "key": "browser",
+      "path": "tabler/browser.svg",
+      "source_url": "https://raw.githubusercontent.com/tabler/tabler-icons/a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d/icons/outline/browser.svg",
+      "repository": "https://github.com/tabler/tabler-icons",
+      "commit": "a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d",
+      "bytes": 474,
+      "sha256": "33278304e8bddd09f2dcfec3e6ff3bea589ac7b13f0defad07098b35ae796510",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "MIT"
+    },
+    {
+      "family": "tabler",
+      "key": "chart-line",
+      "path": "tabler/chart-line.svg",
+      "source_url": "https://raw.githubusercontent.com/tabler/tabler-icons/a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d/icons/outline/chart-line.svg",
+      "repository": "https://github.com/tabler/tabler-icons",
+      "commit": "a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d",
+      "bytes": 445,
+      "sha256": "91ae4d96cfc8926df2c715438bd539da2703dc158828336c227ce23e62ca7cb4",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "MIT"
+    },
+    {
+      "family": "tabler",
+      "key": "link",
+      "path": "tabler/link.svg",
+      "source_url": "https://raw.githubusercontent.com/tabler/tabler-icons/a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d/icons/outline/link.svg",
+      "repository": "https://github.com/tabler/tabler-icons",
+      "commit": "a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d",
+      "bytes": 522,
+      "sha256": "27e34930284da308ed31c4ddc9c14fc333db08be5b6c42bcbf99f77ec5bad626",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "MIT"
+    },
+    {
+      "family": "tabler",
+      "key": "target",
+      "path": "tabler/target.svg",
+      "source_url": "https://raw.githubusercontent.com/tabler/tabler-icons/a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d/icons/outline/target.svg",
+      "repository": "https://github.com/tabler/tabler-icons",
+      "commit": "a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d",
+      "bytes": 489,
+      "sha256": "1874e1180c0fbe2a570c59986adfbed4e4eb9e839f7dd100bc871e08f5aabb1d",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "MIT"
+    },
+    {
+      "family": "tabler",
+      "key": "wallet",
+      "path": "tabler/wallet.svg",
+      "source_url": "https://raw.githubusercontent.com/tabler/tabler-icons/a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d/icons/outline/wallet.svg",
+      "repository": "https://github.com/tabler/tabler-icons",
+      "commit": "a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d",
+      "bytes": 506,
+      "sha256": "1cfac2833c5f65a9e3d3309ccc21c6c1cebec4fabf49a30ab75987cf09fb9a38",
+      "weight": "outline",
+      "viewBox": "0 0 24 24",
+      "license": "MIT"
+    }
+  ],
+  "errors": []
+}

@@ -49,7 +49,9 @@ export function SiteAnalytics({ children }: { children?: ReactNode }) {
   useEffect(() => { setRuntime(createSiteAnalytics(window, {
     ga4: import.meta.env.VITE_GA4_MEASUREMENT_ID,
     clarity: import.meta.env.VITE_CLARITY_PROJECT_ID,
-    growth: true,
+    // This static tool release preserves the deployed API's older exact
+    // allowlist. Tools calculate offline and never start attribution requests.
+    growth: !isFreeToolPath(window.location.pathname),
   })); }, []);
   // Server and first hydration render share the same Provider and child slots,
   // preserving useId and form nodes when consent UI is added after hydration.

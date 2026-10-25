@@ -6,6 +6,7 @@ Allow: /help$
 Allow: /terms$
 Allow: /privacy$
 Allow: /tools$
+Allow: /tools/guide$
 Allow: /tools/roas-calculator$
 Allow: /tools/ecommerce-profit-calculator$
 Allow: /tools/profit-margin-calculator$
@@ -14,8 +15,18 @@ Allow: /tools/customer-lifetime-value-calculator$
 Allow: /tools/shopify-cost-calculator$
 Allow: /tools/hook-generator$
 Allow: /tools/ad-finder$
+Allow: /tools/cpa-calculator$
+Allow: /tools/traffic-goal-calculator$
+Allow: /tools/ad-budget-calculator$
+Allow: /tools/utm-link-builder$
+Allow: /tools/privacy-policy-generator$
+Allow: /tools/refund-policy-generator$
+Allow: /tools/terms-and-conditions-generator$
+Allow: /tools/returns-policy-generator$
+Allow: /tools/shipping-policy-generator$
 Allow: /sitemap.xml$
 Allow: /assets/
+Allow: /free-tools/assets/
 Allow: /favicon.svg$
 Allow: /adthrender-mark.svg$
 
