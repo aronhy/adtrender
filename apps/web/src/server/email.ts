@@ -30,7 +30,10 @@ export async function deliverEmailBatch(db:PrismaClient,send:(m:Message)=>Promis
   keyBytes(key);
   // Expired tokens are cleared. An abandoned in-flight delivery is uncertain,
   // not automatically resent: SMTP has no exactly-once delivery guarantee.
-  await db.emailDelivery.updateMany({where:{status:{in:['QUEUED','SENDING']},payloadExpiresAt:{lte:new Date()}},data:{status:'EXPIRED',encryptedPayload:null}});
+  const now=new Date();
+  await db.emailDelivery.updateMany({where:{status:{in:['QUEUED','SENDING','FAILED']},payloadExpiresAt:{lte:now}},data:{status:'EXPIRED',encryptedPayload:null}});
+  // UNKNOWN remains uncertain even after its short-lived payload is erased.
+  await db.emailDelivery.updateMany({where:{encryptedPayload:{not:null},payloadExpiresAt:{lte:now}},data:{encryptedPayload:null}});
   await db.emailDelivery.updateMany({where:{status:'SENDING',leaseExpiresAt:{lt:new Date()}},data:{status:'UNKNOWN',lastErrorCode:'DELIVERY_OUTCOME_UNKNOWN'}});
   for(let i=0;i<Math.min(limit,100);i++) {
     const owner=randomUUID();
@@ -46,7 +49,11 @@ export async function deliverEmailBatch(db:PrismaClient,send:(m:Message)=>Promis
       const retryable=code==='ECONNREFUSED'||code==='EDNS'||(responseCode>=400&&responseCode<500);
       const definitive=retryable||responseCode>=500||error instanceof DomainError;
       const status=retryable&&row.attempts<3?'QUEUED':definitive?'FAILED':'UNKNOWN';
-      await db.emailDelivery.updateMany({where:{id:row.id,status:'SENDING',leaseOwner:owner},data:{status,lastErrorCode:status==='UNKNOWN'?'DELIVERY_OUTCOME_UNKNOWN':'SMTP_FAILURE',nextAttemptAt:new Date(Date.now()+Math.min(3600000,30000*2**row.attempts)),leaseOwner:null,leaseExpiresAt:null,...(status==='FAILED'?{encryptedPayload:null}:{})}});
+      // A definite SMTP rejection can be retried by an administrator after
+      // configuration is fixed. Keep only the encrypted, unexpired payload;
+      // automatic retries, the three-attempt limit and UNKNOWN policy stay intact.
+      const manualRetry=status==='FAILED'&&responseCode>=500&&row.attempts<3;
+      await db.emailDelivery.updateMany({where:{id:row.id,status:'SENDING',leaseOwner:owner},data:{status,lastErrorCode:status==='UNKNOWN'?'DELIVERY_OUTCOME_UNKNOWN':'SMTP_FAILURE',nextAttemptAt:new Date(Date.now()+Math.min(3600000,30000*2**row.attempts)),leaseOwner:null,leaseExpiresAt:null,...(status==='FAILED'&&!manualRetry?{encryptedPayload:null}:{})}});
     }
   }
 }

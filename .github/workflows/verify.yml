@@ -1,0 +1,186 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'fix/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Tests and production builds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:55438/adtrender_test_ci
+      SAAS_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:55438/adtrender_test_ci
+      SAAS_OWNED_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:55438/adtrender_test_ci
+      SAAS_BACKUP_TEST_DATABASE_URL: postgresql://adtrender:ci-only-password@127.0.0.1:55438/adtrender_test_ci
+      TEST_POSTGRES_CONTAINER: adtrender-test-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+      PG_BIN: /usr/lib/postgresql/15/bin
+      REACT_APP_API_URL: https://api.example.invalid
+      TIKTOK_TEST_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.14.1
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            toolchain/package-lock.json
+            apps/web/package-lock.json
+      - name: Install locked dependencies
+        run: |
+          npm ci --prefix toolchain --no-audit
+          echo "$GITHUB_WORKSPACE/toolchain/node_modules/.bin" >> "$GITHUB_PATH"
+          ./toolchain/node_modules/.bin/npm ci --no-audit
+          ./toolchain/node_modules/.bin/npm ci --prefix apps/web --no-audit
+      - name: Install Chromium and PostgreSQL client
+        run: |
+          sudo apt-get update
+          # Ubuntu 24.04 ships PostgreSQL 16. Use the official repository for
+          # client tools matching the PostgreSQL 15 self-host database.
+          # https://www.postgresql.org/download/linux/ubuntu/
+          sudo apt-get install -y curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/adtrender-pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-15 apparmor
+          "$PG_BIN/pg_dump" --version
+          "$PG_BIN/pg_restore" --version
+          node apps/web/node_modules/playwright/cli.js install --with-deps chromium --no-shell
+      - name: Allow sandboxed Chromium on the runner
+        # Ubuntu 24.04 restricts user namespaces for downloaded browsers.
+        # Scope the exception to this executable; keep chromiumSandbox enabled.
+        # https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md
+        run: |
+          chromium_path=$(node -p "require('./apps/web/node_modules/playwright').chromium.executablePath()")
+          test -x "$chromium_path"
+          sudo tee /etc/apparmor.d/adtrender-ci-chromium > /dev/null <<EOF
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile adtrender-ci-chromium "$chromium_path" flags=(unconfined) {
+            userns,
+          }
+          EOF
+          sudo apparmor_parser -r /etc/apparmor.d/adtrender-ci-chromium
+      - name: Start isolated loopback PostgreSQL
+        # The legacy import guard checks inet_server_addr() is loopback.
+        # Linux host networking preserves this; bridge port forwarding does not.
+        env:
+          POSTGRES_DB: adtrender_test_ci
+          POSTGRES_USER: adtrender
+          POSTGRES_PASSWORD: ci-only-password
+        run: |
+          docker run --detach --name "$TEST_POSTGRES_CONTAINER" --network host \
+            --env POSTGRES_DB --env POSTGRES_USER --env POSTGRES_PASSWORD \
+            postgres:15.17-bookworm postgres -c listen_addresses=127.0.0.1 -c port=55438 -c timezone=UTC -c log_timezone=UTC
+          for attempt in $(seq 1 60); do
+            if "$PG_BIN/pg_isready" -h 127.0.0.1 -p 55438 -U adtrender -d adtrender_test_ci; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Bootstrap Wasp and migrate the isolated database
+        run: |
+          ./scripts/bootstrap-wasp.sh
+          node apps/web/node_modules/prisma/build/index.js migrate deploy --schema=apps/web/.wasp/out/db/schema.prisma
+      - name: Verify application
+        run: |
+          # Build regression tests intentionally compile invalid TypeScript.
+          # Their exit status remains authoritative without false annotations.
+          echo '::remove-matcher owner=tsc::'
+          ./scripts/verify.sh
+      - name: Check self-host configuration
+        run: |
+          docker compose version
+          node --test deploy/selfhost/config.test.mjs
+      - name: Remove isolated PostgreSQL
+        if: always()
+        run: |
+          if docker container inspect "$TEST_POSTGRES_CONTAINER" > /dev/null 2>&1; then
+            docker rm --force --volumes "$TEST_POSTGRES_CONTAINER"
+          fi
+
+  selfhost:
+    name: Self-host deployment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: adtrender-ci
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Initialize disposable local configuration
+        run: |
+          ./scripts/selfhost-init.sh localhost owner@example.test,member@example.test
+          python3 - <<'PY'
+          from pathlib import Path
+          for line in Path('.env').read_text().splitlines():
+              key, _, value = line.partition('=')
+              if len(value) >= 16 and any(part in key for part in ['SECRET', 'PASSWORD', 'KEY']):
+                  print(f'::add-mask::{value}')
+          PY
+      - name: Build API and both web surfaces
+        run: docker compose --profile mailpit build migrate caddy
+      - name: Validate Caddy and packaged assets
+        run: |
+          docker compose run --rm --no-deps --entrypoint caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          docker compose run --rm --no-deps --entrypoint sh caddy -ec 'test -s /srv/public/200.html && test -s /srv/admin/200.html'
+      - name: Check HTTPS routing for both web surfaces
+        run: |
+          docker compose up -d --no-deps --wait caddy
+          docker compose exec -T caddy cat /trust/root.crt > "$RUNNER_TEMP/caddy-root.crt"
+          curl --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy-root.crt" --resolve localhost:443:127.0.0.1 https://localhost/app/admin --output "$RUNNER_TEMP/customer.html"
+          curl --fail --silent --show-error --cacert "$RUNNER_TEMP/caddy-root.crt" --resolve admin.localhost:443:127.0.0.1 https://admin.localhost/app/admin --output "$RUNNER_TEMP/admin.html"
+          docker compose exec -T caddy cat /srv/public/200.html > "$RUNNER_TEMP/expected-customer.html"
+          docker compose exec -T caddy cat /srv/admin/200.html > "$RUNNER_TEMP/expected-admin.html"
+          cmp "$RUNNER_TEMP/customer.html" "$RUNNER_TEMP/expected-customer.html"
+          cmp "$RUNNER_TEMP/admin.html" "$RUNNER_TEMP/expected-admin.html"
+          if cmp -s "$RUNNER_TEMP/customer.html" "$RUNNER_TEMP/admin.html"; then
+            echo 'Customer and administrator hosts served the same entry point.' >&2
+            exit 1
+          fi
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.14.1
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install smoke-test browser
+        run: |
+          npm ci --no-audit
+          node node_modules/playwright/cli.js install --with-deps chromium --no-shell
+          chromium_path=$(node -p "require('playwright').chromium.executablePath()")
+          sudo tee /etc/apparmor.d/adtrender-ci-chromium > /dev/null <<EOF
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile adtrender-ci-chromium "$chromium_path" flags=(unconfined) {
+            userns,
+          }
+          EOF
+          sudo apparmor_parser -r /etc/apparmor.d/adtrender-ci-chromium
+      - name: Start the complete stack from empty volumes
+        run: docker compose --profile mailpit up -d --wait --wait-timeout 180
+      - name: Verify registration, administration and Garage storage
+        env:
+          SELFHOST_SMOKE: '1'
+        run: SELFHOST_CA_FILE="$RUNNER_TEMP/caddy-root.crt" node deploy/selfhost/smoke.mjs
+      - name: Inspect failed services
+        if: failure()
+        run: |
+          docker compose --profile mailpit ps --all
+          docker compose --profile mailpit logs --no-color --tail 80 migrate api worker garage
+      - name: Remove disposable resources
+        if: always()
+        run: docker compose --profile mailpit down --volumes --remove-orphans
